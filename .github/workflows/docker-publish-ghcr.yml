@@ -25,10 +25,13 @@ jobs:
       - name: Read VERSION and resolve tags
         id: version
         run: |
-          VERSION=$(cat VERSION)
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          VERSION=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
+          if [ -z "$VERSION" ]; then
+            VERSION="dev"
+          fi
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "Build version: $VERSION ($SHORT_SHA)"
 
       - name: Set up Docker Buildx
@@ -49,6 +52,7 @@ jobs:
           tags: |
             type=raw,value=latest
             type=raw,value=main
+            type=raw,value=${{ steps.version.outputs.short_sha }}
             type=raw,value=${{ steps.version.outputs.version }}-${{ steps.version.outputs.short_sha }}
 
       - name: Build and push Docker image
@@ -71,4 +75,5 @@ jobs:
           echo "Available tags:" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ env.IMAGE_NAME }}:main\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-${{ steps.version.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
