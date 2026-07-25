@@ -19,12 +19,10 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  ExternalLink,
   Minus,
   Star,
   TrendingDown,
   TrendingUp,
-  Trophy,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +38,7 @@ interface Skill {
   rank: number
   name: string
   description: string
+  description_zh?: string
   category: string
   users: string
   source: string
@@ -127,16 +126,6 @@ export function SkillRanking() {
       default:
         return <Minus className='size-4 text-gray-400' />
     }
-  }
-
-  const getRankStyle = (rank: number) => {
-    if (rank === 1)
-      return 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-lg shadow-yellow-200'
-    if (rank === 2)
-      return 'bg-gradient-to-br from-gray-300 to-gray-400 text-white'
-    if (rank === 3)
-      return 'bg-gradient-to-br from-orange-400 to-amber-600 text-white'
-    return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
   }
 
   const formatDate = (dateStr: string) => {
@@ -290,61 +279,29 @@ export function SkillRanking() {
                   {filteredSkills.map((skill) => {
                     const cardContent = (
                       <Card className='h-full transition-all duration-200 group-hover:shadow-md group-hover:border-primary/30'>
-                        <CardContent className='p-3 flex items-center gap-3 sm:gap-4 sm:p-4'>
-                          {/* Rank badge */}
-                          <div
-                            className={cn(
-                              'w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-bold text-sm sm:text-base flex-shrink-0',
-                              getRankStyle(skill.rank)
-                            )}
-                          >
-                            {skill.rank <= 3 ? (
-                              <Trophy className='w-4 h-4 sm:w-5 sm:h-5' />
-                            ) : (
-                              skill.rank
-                            )}
-                          </div>
+                        <CardContent className='p-3 sm:p-4'>
+                          {/* Skill name */}
+                          <h3 className='font-semibold text-foreground group-hover:text-primary transition-colors'>
+                            {skill.name}
+                          </h3>
 
-                          {/* Skill info */}
-                          <div className='flex-1 min-w-0'>
-                            <div className='flex items-center gap-2 flex-wrap'>
-                              <h3 className='font-semibold text-foreground group-hover:text-primary transition-colors'>
-                                {skill.name}
-                              </h3>
-                              <Badge
-                                variant='secondary'
-                                className='text-xs font-normal'
-                              >
-                                {skill.category}
+                          {/* Category, official badge, trend, stars */}
+                          <div className='mt-1 flex flex-wrap items-center gap-2'>
+                            <Badge
+                              variant='secondary'
+                              className='text-xs font-normal'
+                            >
+                              {skill.category}
+                            </Badge>
+                            {skill.source === 'official' && (
+                              <Badge className='text-xs font-normal bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0'>
+                                {t('Official')}
                               </Badge>
-                              {skill.source === 'official' && (
-                                <Badge className='text-xs font-normal bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0'>
-                                  {t('Official')}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className='text-sm text-muted-foreground mt-0.5 line-clamp-1'>
-                              {skill.description}
-                            </p>
-                          </div>
-
-                          {/* Trend / view source / stars */}
-                          <div className='flex items-center gap-2 sm:gap-3 flex-shrink-0'>
+                            )}
                             <div className='hidden sm:flex items-center'>
                               {getTrendIcon(skill.trend)}
                             </div>
-
-                            {/* Decorative external-link hint (whole card is clickable) */}
-                            {skill.url && (
-                              <span
-                                className='text-muted-foreground group-hover:text-primary transition-colors'
-                                title='查看原站'
-                              >
-                                <ExternalLink className='w-4 h-4' />
-                              </span>
-                            )}
-
-                            <div className='flex items-center gap-1.5 text-sm text-muted-foreground'>
+                            <div className='ml-auto flex items-center gap-1 text-sm text-muted-foreground'>
                               <Star className='w-4 h-4' />
                               <span className='font-medium tabular-nums'>
                                 {skill.users}
@@ -352,6 +309,11 @@ export function SkillRanking() {
                               <span className='text-xs'>Star</span>
                             </div>
                           </div>
+
+                          {/* Description: two lines max */}
+                          <p className='text-sm text-muted-foreground mt-1.5 line-clamp-2'>
+                            {skill.description_zh || skill.description}
+                          </p>
                         </CardContent>
                       </Card>
                     )

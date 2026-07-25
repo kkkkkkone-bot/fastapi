@@ -32,6 +32,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from typing import Dict, List
+from urllib.parse import quote
 
 # ---------------------------------------------------------------------------
 # 可插拔渠道架构
@@ -67,6 +68,105 @@ _CATEGORY_RULES: List[tuple] = [
     (r"\b(?:ai|ml|llm)\b", "AI增强"),
     (r"\bagent(?:s)?\b", "AI"),
 ]
+
+
+# ---------------------------------------------------------------------------
+# 翻译层：生成时把英文 description 翻译成中文，写入 description_zh 字段。
+# 优先级：配置了 TRANSLATE_API_KEY 则调用本地/自建大模型（OpenAI 兼容
+#   /v1/chat/completions，默认指向本地 new-api http://localhost:3000/v1）；
+#   未配置 key 时自动回退到免费的 MyMemory 翻译 API，保证开箱即出中文。
+# 两者均仅使用 Python 标准库（urllib），不引入第三方依赖。
+# 任意一步失败/超时都回退英文，绝不破坏数据生成。
+# ---------------------------------------------------------------------------
+TRANSLATE_BASE_URL = os.environ.get("TRANSLATE_BASE_URL", "http://localhost:3000/v1")
+TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY", "")
+TRANSLATE_MODEL = os.environ.get("TRANSLATE_MODEL", "")
+
+_LLM_MODEL_CACHE: str = ""
+
+
+def _is_chinese(text: str) -> bool:
+    """判断文本是否已含中文，避免对已中文内容二次翻译（如种子数据）。"""
+    return any("\u4e00" <= ch <= "\u9fff" for ch in (text or ""))
+
+
+def _detect_llm_model() -> str:
+    """未显式指定 TRANSLATE_MODEL 时，从 /v1/models 自动探测第一个可用模型。"""
+    global _LLM_MODEL_CACHE
+    if _LLM_MODEL_CACHE:
+        return _LLM_MODEL_CACHE
+    url = TRANSLATE_BASE_URL.rstrip("/") + "/models"
+    headers = {"User-Agent": "skill-ranking-crawler"}
+    if TRANSLATE_API_KEY:
+        headers["Authorization"] = f"Bearer {TRANSLATE_API_KEY}"
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        models = data.get("data") or []
+        if models:
+            _LLM_MODEL_CACHE = models[0].get("id", "")
+    except Exception:
+        pass
+    return _LLM_MODEL_CACHE
+
+
+def _translate_with_llm(text: str) -> str:
+    """调用 OpenAI 兼容端点翻译，返回简体中文；失败返回空字符串。"""
+    url = TRANSLATE_BASE_URL.rstrip("/") + "/chat/completions"
+    model = TRANSLATE_MODEL or _detect_llm_model()
+    if not model:
+        return ""
+    payload = {
+        "model": model,
+        "temperature": 0,
+        "messages": [
+            {
+                "role": "system",
+                "content": "你是一个翻译助手，只把用户提供的英文技术描述翻译成简洁的简体中文，不要添加任何解释或多余字符。",
+            },
+            {"role": "user", "content": text},
+        ],
+    }
+    headers = {"Content-Type": "application/json"}
+    if TRANSLATE_API_KEY:
+        headers["Authorization"] = f"Bearer {TRANSLATE_API_KEY}"
+    try:
+        req = urllib.request.Request(
+            url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return (data.get("choices", [{}])[0].get("message", {}).get("content", "") or "").strip()
+    except Exception:
+        return ""
+
+
+def _translate_with_mymemory(text: str) -> str:
+    """免费翻译 API 兜底（无需 key）。失败返回空字符串。"""
+    url = "https://api.mymemory.translated.net/get?q=" + quote(text) + "&langpair=en|zh-CN"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "skill-ranking-crawler"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        translated = (data.get("responseData") or {}).get("translatedText", "")
+        # 清理 MyMemory 偶尔附带的版权后缀
+        if "(c)" in translated:
+            translated = translated.split("(c)")[0].strip()
+        return translated.strip()
+    except Exception:
+        return ""
+
+
+def translate_description(text: str) -> str:
+    """统一翻译入口：已含中文则不翻译；否则优先大模型，回退免费 API。"""
+    if not text or _is_chinese(text):
+        return ""
+    if TRANSLATE_API_KEY:
+        zh = _translate_with_llm(text)
+        if zh:
+            return zh
+    return _translate_with_mymemory(text)
 
 
 def _format_users(count: int) -> str:
@@ -120,6 +220,7 @@ def _repo_to_skill(repo: Dict) -> Dict:
     return {
         "name": repo.get("full_name", ""),
         "description": description,
+        "description_zh": translate_description(description),
         "category": _map_category(topics, description),
         "users": _format_users(repo.get("stargazers_count", 0)),
         "source": "github",
@@ -197,6 +298,14 @@ def main() -> None:
     print("=" * 50)
     print("Skill 排行榜数据爬取工具 (GitHub 渠道)")
     print("=" * 50)
+
+    # 翻译后端提示
+    if TRANSLATE_API_KEY:
+        model = TRANSLATE_MODEL or "(自动探测)"
+        print(f"🌐 翻译后端: 本地大模型 {TRANSLATE_BASE_URL} [model={model}]")
+    else:
+        print("🌐 翻译后端: 免费 MyMemory API（未配置 TRANSLATE_API_KEY）")
+        print("   提示: 配置 TRANSLATE_API_KEY 可改用本地 new-api 大模型，翻译质量更佳。")
 
     all_skills: List[Dict] = []
 

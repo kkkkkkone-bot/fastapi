@@ -33,7 +33,6 @@ import {
   RadioTower,
   ShieldCheck,
   TerminalSquare,
-  Timer,
   type LucideIcon,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
@@ -47,7 +46,7 @@ import {
 } from '@/components/page-transition'
 import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
-import { fetchTokenKey, getApiKeys } from '@/features/keys/api'
+import { getApiKeys } from '@/features/keys/api'
 import type { ApiKey } from '@/features/keys/types'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { getUserModels } from '@/lib/api'
@@ -109,8 +108,6 @@ interface RequestExample {
   endpoint: string
   model: string
   keyName: string
-  keyId?: number
-  displayKey: string
   ready: boolean
 }
 
@@ -143,41 +140,26 @@ function getCurrentOrigin(): string {
 }
 
 function normalizeEndpoint(sourceUrl?: string): string {
-  const fallback = `${getCurrentOrigin()}/v1/chat/completions`
+  const fallback = `${getCurrentOrigin()}/v1`
   const trimmed = sourceUrl?.trim()
   if (!trimmed) return fallback
 
   const withoutTrailingSlash = trimmed.replace(/\/+$/, '')
   if (withoutTrailingSlash.endsWith('/v1/chat/completions')) {
-    return withoutTrailingSlash
+    return withoutTrailingSlash.replace(/\/chat\/completions$/, '')
   }
   if (withoutTrailingSlash.endsWith('/v1')) {
-    return `${withoutTrailingSlash}/chat/completions`
+    return withoutTrailingSlash
   }
-  return `${withoutTrailingSlash}/v1/chat/completions`
+  return `${withoutTrailingSlash}/v1`
 }
 
 function getPreferredKey(keys: ApiKey[]): ApiKey | null {
   return keys.find((item) => item.status === 1) ?? keys[0] ?? null
 }
 
-function formatDisplayKey(key?: string): string {
-  if (!key) return 'sk-...'
-  if (key.length <= 14) return key
-  return `${key.slice(0, 7)}...${key.slice(-4)}`
-}
-
-function buildCurlCommand(args: {
-  endpoint: string
-  apiKey: string
-  model: string
-}): string {
-  return [
-    `curl ${args.endpoint} \\`,
-    '  -H "Content-Type: application/json" \\',
-    `  -H "Authorization: Bearer ${args.apiKey}" \\`,
-    `  -d '{"model":"${args.model}","messages":[{"role":"user","content":"Say hello in one sentence."}]}'`,
-  ].join('\n')
+function buildCurlCommand(endpoint: string): string {
+  return `curl ${endpoint}`
 }
 
 function SetupGuideBackdrop(props: { compact?: boolean }) {
@@ -283,30 +265,14 @@ function RequestPreview(props: {
   const shouldReduceMotion = useReducedMotion()
   const [isCopying, setIsCopying] = useState(false)
   const { copyToClipboard } = useCopyToClipboard({ notify: false })
-  const previewCurl = buildCurlCommand({
-    endpoint: props.example.endpoint,
-    apiKey: props.example.displayKey,
-    model: props.example.model,
-  })
+  const previewCurl = buildCurlCommand(props.example.endpoint)
   const previewLines = previewCurl.split('\n')
   const handleCopyRequest = async () => {
-    if (!props.example.keyId || isCopying) return
+    if (isCopying) return
 
     setIsCopying(true)
     try {
-      const result = await fetchTokenKey(props.example.keyId)
-      const key = result.success && result.data?.key ? result.data.key : ''
-      if (!key) {
-        toast.error(result.message || t('Failed to copy to clipboard'))
-        return
-      }
-
-      const realCurl = buildCurlCommand({
-        endpoint: props.example.endpoint,
-        apiKey: `sk-${key}`,
-        model: props.example.model,
-      })
-      const copied = await copyToClipboard(realCurl)
+      const copied = await copyToClipboard(props.example.endpoint)
       if (copied) {
         toast.success(t('Copied to clipboard'))
       } else {
@@ -574,14 +540,8 @@ export function OverviewDashboard() {
         icon: ShieldCheck,
         tone: 'success',
       },
-      {
-        label: t('Model selected'),
-        value: modelsQuery.data?.[0] ?? t('Loading'),
-        icon: Timer,
-        tone: 'chart-4',
-      },
     ],
-    [apiInfoItems.length, modelsQuery.data, preferredKey, t]
+    [apiInfoItems.length, preferredKey, t]
   )
 
   const requestExample = useMemo<RequestExample>(() => {
@@ -594,10 +554,6 @@ export function OverviewDashboard() {
       endpoint,
       model,
       keyName,
-      keyId: preferredKey?.id,
-      displayKey: preferredKey
-        ? formatDisplayKey(`sk-${preferredKey.key}`)
-        : 'sk-...',
       ready,
     }
   }, [apiInfoItems, modelsQuery.data, preferredKey, t])
