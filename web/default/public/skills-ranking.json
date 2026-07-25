@@ -1,0 +1,1017 @@
+{
+  "update_time": "2026-07-24T22:36:07.082984",
+  "total": 100,
+  "categories": [
+    "全部",
+    "AI",
+    "AI增强",
+    "工具",
+    "数据",
+    "文档",
+    "部署",
+    "安全",
+    "通信"
+  ],
+  "skills": [
+    {
+      "name": "anthropics/skills",
+      "description": "Public repository for Agent Skills",
+      "category": "AI",
+      "users": "163.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/anthropics/skills",
+      "rank": 1
+    },
+    {
+      "name": "DietrichGebert/ponytail",
+      "description": "Makes your AI agent think like the laziest senior dev in the room. The best code is the code you never wrote.",
+      "category": "AI增强",
+      "users": "88.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/DietrichGebert/ponytail",
+      "rank": 2
+    },
+    {
+      "name": "nexu-io/open-design",
+      "description": "🎨 The open-source Claude Design alternative. 🖥️ Local-first desktop app. 🖼️ Your coding agent becomes the design engine: prototypes, landing pages, dashboards, slides, images & video — real files, HTM",
+      "category": "AI增强",
+      "users": "81.3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/nexu-io/open-design",
+      "rank": 3
+    },
+    {
+      "name": "addyosmani/agent-skills",
+      "description": "Production-grade engineering skills for AI coding agents.",
+      "category": "AI增强",
+      "users": "80.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/addyosmani/agent-skills",
+      "rank": 4
+    },
+    {
+      "name": "ComposioHQ/awesome-claude-skills",
+      "description": "A curated list of awesome Claude Skills, resources, and tools for customizing Claude AI workflows",
+      "category": "工具",
+      "users": "69.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/ComposioHQ/awesome-claude-skills",
+      "rank": 5
+    },
+    {
+      "name": "VoltAgent/awesome-openclaw-skills",
+      "description": "The awesome collection of OpenClaw skills. 5,400+ skills filtered and categorized from the official OpenClaw Skills Registry.🦞",
+      "category": "AI",
+      "users": "51.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/VoltAgent/awesome-openclaw-skills",
+      "rank": 6
+    },
+    {
+      "name": "hesreallyhim/awesome-claude-code",
+      "description": "A hand-picked collection of the finest of resources for the most awesome of agents, Claude Code, the undisputed champion of coding companions, from the unstoppable team at Anthropic PBC. A delectable ",
+      "category": "AI增强",
+      "users": "50.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/hesreallyhim/awesome-claude-code",
+      "rank": 7
+    },
+    {
+      "name": "CherryHQ/cherry-studio",
+      "description": "AI productivity studio with smart chat, autonomous agents, and 300+ assistants. Unified access to frontier LLMs",
+      "category": "AI增强",
+      "users": "48.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/CherryHQ/cherry-studio",
+      "rank": 8
+    },
+    {
+      "name": "sickn33/agentic-awesome-skills",
+      "description": "AAS Core is the local, agent-first control plane for complete catalog discovery, agent-owned selection, stack validation, and planning, backed by 1,987+ agentic skills. Includes CLI, local MCP, catalo",
+      "category": "工具",
+      "users": "43.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/sickn33/agentic-awesome-skills",
+      "rank": 9
+    },
+    {
+      "name": "wshobson/agents",
+      "description": "Multi-harness agentic plugin marketplace for Claude Code, Codex CLI, Cursor, OpenCode, GitHub Copilot, and Gemini CLI",
+      "category": "工具",
+      "users": "38.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/wshobson/agents",
+      "rank": 10
+    },
+    {
+      "name": "github/awesome-copilot",
+      "description": "Community-contributed instructions, agents, skills, and configurations to help you make the most of GitHub Copilot.",
+      "category": "AI增强",
+      "users": "37k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/github/awesome-copilot",
+      "rank": 11
+    },
+    {
+      "name": "K-Dense-AI/scientific-agent-skills",
+      "description": "Turn any AI agent into an AI Scientist. The #1 Agent Skills library for science, used by 160,000+ scientists worldwide. 148 ready-to-use skills plus 100+ scientific databases covering biology, chemist",
+      "category": "AI增强",
+      "users": "31.6k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/K-Dense-AI/scientific-agent-skills",
+      "rank": 12
+    },
+    {
+      "name": "blader/humanizer",
+      "description": "Agent skill that removes signs of AI-generated writing from text",
+      "category": "AI增强",
+      "users": "30.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/blader/humanizer",
+      "rank": 13
+    },
+    {
+      "name": "googleworkspace/cli",
+      "description": "Google Workspace CLI — one command-line tool for Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin, and more. Dynamically built from Google Discovery Service. Includes AI agent skills.",
+      "category": "工具",
+      "users": "30k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/googleworkspace/cli",
+      "rank": 14
+    },
+    {
+      "name": "topoteretes/cognee",
+      "description": "Cognee is the open-source AI memory platform for agents. Give your AI agents persistent long-term memory across sessions with a self-hosted knowledge graph engine.",
+      "category": "数据",
+      "users": "29.3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/topoteretes/cognee",
+      "rank": 15
+    },
+    {
+      "name": "VoltAgent/awesome-agent-skills",
+      "description": "A curated collection of 1000+ agent skills from official dev teams and the community, compatible with Claude Code, Codex, Gemini CLI, Cursor, and more.",
+      "category": "工具",
+      "users": "28.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/VoltAgent/awesome-agent-skills",
+      "rank": 16
+    },
+    {
+      "name": "OthmanAdi/planning-with-files",
+      "description": "Persistent file-based planning for AI coding agents and long-running tasks. Crash-proof markdown plans, session recovery after /clear and compaction, per-turn re-injection against context rot, determi",
+      "category": "AI增强",
+      "users": "25.7k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/OthmanAdi/planning-with-files",
+      "rank": 17
+    },
+    {
+      "name": "phuryn/pm-skills",
+      "description": "PM Skills Marketplace: 100+ agentic skills, commands, and plugins — from discovery to strategy, execution, launch, and growth.",
+      "category": "AI",
+      "users": "24.4k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/phuryn/pm-skills",
+      "rank": 18
+    },
+    {
+      "name": "JimLiu/baoyu-skills",
+      "description": "暂无描述",
+      "category": "AI",
+      "users": "24.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/JimLiu/baoyu-skills",
+      "rank": 19
+    },
+    {
+      "name": "agentskills/agentskills",
+      "description": "Specification and documentation for Agent Skills",
+      "category": "AI",
+      "users": "23.4k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/agentskills/agentskills",
+      "rank": 20
+    },
+    {
+      "name": "alirezarezvani/claude-skills",
+      "description": "345 Claude Code skills & agent skills & plugins (30+ Agents, 70+ custom commands, 330+ skills, customizable references, scripts)for Claude Code, Codex, Gemini CLI, Cursor, and 8 more coding agents — e",
+      "category": "工具",
+      "users": "23.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/alirezarezvani/claude-skills",
+      "rank": 21
+    },
+    {
+      "name": "KKKKhazix/khazix-skills",
+      "description": "数字生命卡兹克开源的 AI Skills 合集 | Agent Skills: neat-freak 洁癖 (docs/memory closeout), hv-analysis, khazix-writer & more — Claude Code, Codex & 40+ agents",
+      "category": "文档",
+      "users": "17.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/KKKKhazix/khazix-skills",
+      "rank": 22
+    },
+    {
+      "name": "kubesphere/kubesphere",
+      "description": "The container platform tailored for Kubernetes multi-cloud, datacenter, and edge management ⎈ 🖥 ☁️",
+      "category": "AI增强",
+      "users": "17k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/kubesphere/kubesphere",
+      "rank": 23
+    },
+    {
+      "name": "alibaba/zvec",
+      "description": "A lightweight, lightning-fast, in-process vector database",
+      "category": "数据",
+      "users": "15.3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/alibaba/zvec",
+      "rank": 24
+    },
+    {
+      "name": "microsoft/SkillOpt",
+      "description": "SkillOpt is a text-space optimizer that trains reusable natural-language skills for frozen LLM agents through trajectory-driven edits, validation-gated updates, and deployable best_skill.md artifacts.",
+      "category": "部署",
+      "users": "14.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/microsoft/SkillOpt",
+      "rank": 25
+    },
+    {
+      "name": "eigent-ai/eigent",
+      "description": "Eigent: The Open Source Cowork Desktop - Local and Free Alternative to Claude Cowork and Codex",
+      "category": "AI增强",
+      "users": "14.6k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/eigent-ai/eigent",
+      "rank": 26
+    },
+    {
+      "name": "alibaba/open-code-review",
+      "description": "Open-source & free — Battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in fine-tuned ruleset (NPE, thread-",
+      "category": "AI增强",
+      "users": "12.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/alibaba/open-code-review",
+      "rank": 27
+    },
+    {
+      "name": "aden-hive/hive",
+      "description": "Multi-Agent Harness for Production AI",
+      "category": "AI增强",
+      "users": "10.8k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/aden-hive/hive",
+      "rank": 28
+    },
+    {
+      "name": "AgriciDaniel/claude-obsidian",
+      "description": "Self-organizing AI second brain for Obsidian + Claude Code. Drop any source and Claude reads, links, and files it into one connected knowledge graph of plain Markdown you own. AI note-taking, personal",
+      "category": "AI增强",
+      "users": "9.9k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/AgriciDaniel/claude-obsidian",
+      "rank": 29
+    },
+    {
+      "name": "xixu-me/xget",
+      "description": "Ultra-high-performance, secure, all-in-one acceleration engine for developer resources",
+      "category": "AI",
+      "users": "8.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/xixu-me/xget",
+      "rank": 30
+    },
+    {
+      "name": "nexu-io/html-anything",
+      "description": "✨ The agentic HTML editor — your local AI agent writes the HTML, you ship it. 🚀 75 Skills × 9 Surfaces (magazine · deck · poster · XHS / tweet · prototype · data report · Hyperframes) 🛡️ Sandboxed pre",
+      "category": "AI增强",
+      "users": "7.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/nexu-io/html-anything",
+      "rank": 31
+    },
+    {
+      "name": "refly-ai/refly",
+      "description": "The first open-source agent skills builder. Define skills by vibe workflow, run on Claude Code, Cursor, Codex & more. Build Clawdbot 🦞· APIs for Lovable · Bots for Slack & Lark/Feishu · Skills are inf",
+      "category": "工具",
+      "users": "7.5k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/refly-ai/refly",
+      "rank": 32
+    },
+    {
+      "name": "AgriciDaniel/claude-ads",
+      "description": "Claude-first paid-media operations skill for Claude Code across 12 ad platforms (Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, Apple, Amazon, Reddit, Pinterest, Snapchat, X): source-grounded aud",
+      "category": "AI增强",
+      "users": "7.4k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/AgriciDaniel/claude-ads",
+      "rank": 33
+    },
+    {
+      "name": "jnMetaCode/superpowers-zh",
+      "description": "🦸 AI 编程超能力 · 中文增强版 — superpowers（116k+ ⭐）完整汉化 + 6 个中国原创 skills，让 Claude Code / Copilot CLI / Hermes Agent / Cursor / Windsurf / Kiro / Gemini CLI 等 16 款 AI 编程工具真正会干活",
+      "category": "工具",
+      "users": "7.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/jnMetaCode/superpowers-zh",
+      "rank": 34
+    },
+    {
+      "name": "tt-a1i/archify",
+      "description": "Agent skill for beautiful, verifiable architecture, workflow, sequence, data-flow, and lifecycle diagrams—self-contained HTML with motion and crisp export.",
+      "category": "AI",
+      "users": "7.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/tt-a1i/archify",
+      "rank": 35
+    },
+    {
+      "name": "Agents365-ai/drawio-skill",
+      "description": "Generate draw.io diagrams from natural language — 11 presets (UML, SysML/MBSE, BPMN, network, C4…), 36 tools: codebase/CI/infra-to-diagram, image→editable diagram, mind maps, build-up animation, exec-",
+      "category": "AI",
+      "users": "6.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/Agents365-ai/drawio-skill",
+      "rank": 36
+    },
+    {
+      "name": "htmlstreamofficial/preline",
+      "description": "Preline UI is an open-source set of prebuilt UI components based on the utility-first Tailwind CSS framework.",
+      "category": "AI",
+      "users": "6.4k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/htmlstreamofficial/preline",
+      "rank": 37
+    },
+    {
+      "name": "trailofbits/skills",
+      "description": "Trail of Bits Claude Code skills for security research, vulnerability detection, and audit workflows",
+      "category": "安全",
+      "users": "6.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/trailofbits/skills",
+      "rank": 38
+    },
+    {
+      "name": "ThinkInAIXYZ/deepchat",
+      "description": "🐬DeepChat - A smart assistant that connects powerful AI to your personal world",
+      "category": "AI增强",
+      "users": "6.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/ThinkInAIXYZ/deepchat",
+      "rank": 39
+    },
+    {
+      "name": "ikaijua/Awesome-AITools",
+      "description": "Collection of AI-related utilities. Welcome to submit pull requests /收藏AI相关的实用工具，欢迎提交pull requests",
+      "category": "AI增强",
+      "users": "6.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/ikaijua/Awesome-AITools",
+      "rank": 40
+    },
+    {
+      "name": "heilcheng/awesome-agent-skills",
+      "description": "Tutorials, Guides and Agent Skills Directories",
+      "category": "AI增强",
+      "users": "6k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/heilcheng/awesome-agent-skills",
+      "rank": 41
+    },
+    {
+      "name": "antfu/skills",
+      "description": "Anthony Fu's curated collection of agent skills.",
+      "category": "AI",
+      "users": "5.6k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/antfu/skills",
+      "rank": 42
+    },
+    {
+      "name": "breaking-brake/cc-wf-studio",
+      "description": "CC Workflow Studio",
+      "category": "AI",
+      "users": "5.3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/breaking-brake/cc-wf-studio",
+      "rank": 43
+    },
+    {
+      "name": "gosom/google-maps-scraper",
+      "description": "scrape data  from Google Maps. Extracts data such as the name, address, phone number, website URL, rating,  reviews number, latitude and longitude, reviews,email and more for each place",
+      "category": "工具",
+      "users": "5.3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/gosom/google-maps-scraper",
+      "rank": 44
+    },
+    {
+      "name": "metalbear-co/mirrord",
+      "description": "Run any process, on your machine or in an AI agent's environment, as if it were a pod in your Kubernetes cluster: real env vars, DNS, network, traffic.",
+      "category": "工具",
+      "users": "5.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/metalbear-co/mirrord",
+      "rank": 45
+    },
+    {
+      "name": "tinyplex/tinybase",
+      "description": "A reactive data store & sync engine.",
+      "category": "AI",
+      "users": "5.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/tinyplex/tinybase",
+      "rank": 46
+    },
+    {
+      "name": "0xNyk/awesome-hermes-agent",
+      "description": "Independent directory of useful skills, plugins, memory providers, tools, surfaces, and guides for Nous Research's open-source Hermes Agent.",
+      "category": "AI增强",
+      "users": "5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/0xNyk/awesome-hermes-agent",
+      "rank": 47
+    },
+    {
+      "name": "OpenSenseNova/SenseNova-Skills",
+      "description": "Modular SenseNova skills for building AI-powered office assistants and productivity workflows",
+      "category": "AI增强",
+      "users": "4.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/OpenSenseNova/SenseNova-Skills",
+      "rank": 48
+    },
+    {
+      "name": "dotnet/skills",
+      "description": "Repository for skills to assist AI coding agents with .NET and C#",
+      "category": "AI增强",
+      "users": "4.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/dotnet/skills",
+      "rank": 49
+    },
+    {
+      "name": "xixu-me/awesome-persona-distill-skills",
+      "description": "Curated list of Agent Skills centered on people, relationships, commemorative scenes, and methodological perspectives",
+      "category": "AI",
+      "users": "4.6k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/xixu-me/awesome-persona-distill-skills",
+      "rank": 50
+    },
+    {
+      "name": "ningzimu/codex-ppt-skill",
+      "description": "GPT-Image-2 PPT Generator Skill for Creating Image-Based PowerPoint Presentations in Codex and Other Skill-Compatible Agents",
+      "category": "AI增强",
+      "users": "4.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/ningzimu/codex-ppt-skill",
+      "rank": 51
+    },
+    {
+      "name": "wuyoscar/GPT-Image2-Skill",
+      "description": "GPT Image 2 prompt gallery, image prompt library, agentic skill, and CLI for OpenAI image generation/editing",
+      "category": "工具",
+      "users": "3.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/wuyoscar/GPT-Image2-Skill",
+      "rank": 52
+    },
+    {
+      "name": "SamurAIGPT/Generative-Media-Skills",
+      "description": "Multi-modal Generative Media Skills for AI Agents (Claude Code, Cursor, Gemini CLI). High-quality image, video, and audio generation powered by muapi.ai.",
+      "category": "工具",
+      "users": "3.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/SamurAIGPT/Generative-Media-Skills",
+      "rank": 53
+    },
+    {
+      "name": "evalstate/fast-agent",
+      "description": "Code, Build and Evaluate agents - excellent Model and Skills/MCP/ACP/A2A Support",
+      "category": "工具",
+      "users": "3.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/evalstate/fast-agent",
+      "rank": 54
+    },
+    {
+      "name": "muxuuu/serenity-skill",
+      "description": "Serenity-inspired Agent Skill for supply-chain bottleneck stock research",
+      "category": "AI增强",
+      "users": "3.6k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/muxuuu/serenity-skill",
+      "rank": 55
+    },
+    {
+      "name": "gotalab/cc-sdd",
+      "description": "Turn approved specs into long-running autonomous implementation. A minimal, adaptable SDD harness with Agent Skills for Claude Code, Codex, Cursor, Copilot, Windsurf, OpenCode, Gemini CLI, and Antigra",
+      "category": "工具",
+      "users": "3.6k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/gotalab/cc-sdd",
+      "rank": 56
+    },
+    {
+      "name": "0x0funky/agent-sprite-forge",
+      "description": "Agent Skill for generating 2D sprite sheets and map, transparent PNG frames, and animated GIFs from prompts.",
+      "category": "AI",
+      "users": "3.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/0x0funky/agent-sprite-forge",
+      "rank": 57
+    },
+    {
+      "name": "taishi-i/awesome-ChatGPT-repositories",
+      "description": "A curated list of open source GitHub repositories related to ChatGPT, the OpenAI API, and Codex. Searchable via Claude Code skills.",
+      "category": "工具",
+      "users": "3.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/taishi-i/awesome-ChatGPT-repositories",
+      "rank": 58
+    },
+    {
+      "name": "inkeep/open-knowledge",
+      "description": "Beautiful, AI-native markdown IDE and LLM wiki",
+      "category": "文档",
+      "users": "3.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/inkeep/open-knowledge",
+      "rank": 59
+    },
+    {
+      "name": "himself65/finance-skills",
+      "description": "A collection of skills for AI financial analysis.",
+      "category": "AI增强",
+      "users": "3.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/himself65/finance-skills",
+      "rank": 60
+    },
+    {
+      "name": "brycewang-stanford/Auto-Empirical-Research-Skills",
+      "description": "🔬 A curated collection of 23,000+ agent skills for empirical research across 8 social science disciplines. | 精选 23,000+ AI Agent 技能库，覆盖8大社会科学学科的实证研究。CoPaper.AI 20分钟完成一篇可复现的规范实证论文，并支持用户上传 Skills。-- Mai",
+      "category": "AI增强",
+      "users": "3.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/brycewang-stanford/Auto-Empirical-Research-Skills",
+      "rank": 61
+    },
+    {
+      "name": "Ar9av/obsidian-wiki",
+      "description": "Framework for AI agents to build and maintain a digital brain through Obsidian wiki using Karpathy's LLM Wiki pattern",
+      "category": "AI增强",
+      "users": "3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/Ar9av/obsidian-wiki",
+      "rank": 62
+    },
+    {
+      "name": "open-gitagent/opengap",
+      "description": "A framework-agnostic, git-native standard for defining AI agents",
+      "category": "AI增强",
+      "users": "2.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/open-gitagent/opengap",
+      "rank": 63
+    },
+    {
+      "name": "Forward-Future/loopy",
+      "description": "A library of practical AI-agent loops and an installable skill for finding, adapting, and designing repeatable agent workflows.",
+      "category": "AI增强",
+      "users": "2.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/Forward-Future/loopy",
+      "rank": 64
+    },
+    {
+      "name": "MARKTECHPOST-AI-MEDIA-INC/AI-Agents-Projects-Tutorials",
+      "description": "Multi-agent systems, memory, planning, reasoning loops",
+      "category": "AI增强",
+      "users": "2.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/MARKTECHPOST-AI-MEDIA-INC/AI-Agents-Projects-Tutorials",
+      "rank": 65
+    },
+    {
+      "name": "JimLiu/baoyu-design",
+      "description": "Run Claude Design locally as an Agent Skill — Cursor, Claude Code & more. Produce polished UI mockups, prototypes, decks & wireframes as self-contained HTML, without claude.ai/design. Best with Opus 4",
+      "category": "AI增强",
+      "users": "2.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/JimLiu/baoyu-design",
+      "rank": 66
+    },
+    {
+      "name": "microsoft/skills",
+      "description": "Skills, MCP servers, Custom Agents, Agents.md for SDKs to ground Coding Agents",
+      "category": "AI",
+      "users": "2.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/microsoft/skills",
+      "rank": 67
+    },
+    {
+      "name": "ljagiello/ctf-skills",
+      "description": "Agent skills for solving CTF challenges - web exploitation, binary pwn, crypto, reverse engineering, forensics, OSINT, and more",
+      "category": "安全",
+      "users": "2.8k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/ljagiello/ctf-skills",
+      "rank": 68
+    },
+    {
+      "name": "RKiding/Awesome-finance-skills",
+      "description": "A collection of Awesome Finance Agent Skills for free and easy to start | 一系列开源免费的金融分析Agent Skills",
+      "category": "AI",
+      "users": "2.7k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/RKiding/Awesome-finance-skills",
+      "rank": 69
+    },
+    {
+      "name": "samber/cc-skills-golang",
+      "description": "🧑‍🎨 A collection of Golang agentic skills that works",
+      "category": "工具",
+      "users": "2.7k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/samber/cc-skills-golang",
+      "rank": 70
+    },
+    {
+      "name": "NVIDIA/skills",
+      "description": "Agent Skills for NVIDIA products — install into Claude Code, Codex, and other coding agents to run Physical AI, robotics, simulation, CUDA, and RAG workflows end to end.",
+      "category": "AI增强",
+      "users": "2.7k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/NVIDIA/skills",
+      "rank": 71
+    },
+    {
+      "name": "jeremylongshore/claude-code-plugins-plus-skills",
+      "description": "425 plugins, 2,810 skills, 200 agents for Claude Code. Open-source marketplace at tonsofskills.com with the ccpi CLI package manager.",
+      "category": "工具",
+      "users": "2.6k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/jeremylongshore/claude-code-plugins-plus-skills",
+      "rank": 72
+    },
+    {
+      "name": "addyosmani/web-quality-skills",
+      "description": "Agent Skills for optimizing web quality based on Lighthouse and Core Web Vitals.",
+      "category": "工具",
+      "users": "2.5k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/addyosmani/web-quality-skills",
+      "rank": 73
+    },
+    {
+      "name": "heshengtao/super-agent-party",
+      "description": "⭐ All-in-one AI companion! Super Agent Party = Self hosted neuro sama + openclaw! ⭐ 全能AI伴侣！超级智能体派对 = 自托管neuro sama + openclaw!",
+      "category": "通信",
+      "users": "2.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/heshengtao/super-agent-party",
+      "rank": 74
+    },
+    {
+      "name": "glincker/thesvg",
+      "description": "6,400+ brand SVG icons for developers. Tree-shakeable, typed, open source. npm i thesvg",
+      "category": "AI",
+      "users": "2.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/glincker/thesvg",
+      "rank": 75
+    },
+    {
+      "name": "foryourhealth111-pixel/Vibe-Skills",
+      "description": "VibeSkills is a general-purpose Skill that automatically routes local Skills and intelligently orchestrates harness workflows.",
+      "category": "AI增强",
+      "users": "2.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/foryourhealth111-pixel/Vibe-Skills",
+      "rank": 76
+    },
+    {
+      "name": "aaron-he-zhu/aaron-marketing-skills",
+      "description": "120 marketing skills + 8 commands for Claude Code & AI agents across 7 disciplines — SEO/GEO, influencer, paid ads, email, product launch, organic social & brand narrative — on one shared contract, wi",
+      "category": "AI增强",
+      "users": "2.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/aaron-he-zhu/aaron-marketing-skills",
+      "rank": 77
+    },
+    {
+      "name": "cisco-ai-defense/skill-scanner",
+      "description": "Security Scanner for Agent Skills",
+      "category": "安全",
+      "users": "2.4k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/cisco-ai-defense/skill-scanner",
+      "rank": 78
+    },
+    {
+      "name": "wesammustafa/Claude-Code-Everything-You-Need-to-Know",
+      "description": "A practical Claude Code guide with clear mental models and copy-paste examples — setup, prompt engineering, slash commands, skills, hooks, subagents, agent teams, and MCP servers. Beginner path to pow",
+      "category": "AI增强",
+      "users": "2.4k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/wesammustafa/Claude-Code-Everything-You-Need-to-Know",
+      "rank": 79
+    },
+    {
+      "name": "kevinluosl/deepbot",
+      "description": "DeepBot is a system-level AI assistant built for both personal productivity and enterprise workflows — one-click setup, seamless experience, and native Feishu integration.",
+      "category": "AI增强",
+      "users": "2.4k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/kevinluosl/deepbot",
+      "rank": 80
+    },
+    {
+      "name": "datopian/portaljs",
+      "description": "🌀 AI-native framework for building data portals. Scaffold a full portal from a brief and load datasets in minutes with agentic skills — any backend (CKAN, GitHub, Frictionless).",
+      "category": "AI增强",
+      "users": "2.3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/datopian/portaljs",
+      "rank": 81
+    },
+    {
+      "name": "romainsimon/paperasse",
+      "description": "🇫🇷  Skills pour agents IA spécialisés dans la bureaucratie française : Comptable, Notaire, ...",
+      "category": "AI",
+      "users": "2.3k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/romainsimon/paperasse",
+      "rank": 82
+    },
+    {
+      "name": "ciembor/agent-rules-books",
+      "description": "AGENTS.md rules / skills for AI coding agents: Codex, Cursor & Claude Code. Inspired by Clean Code, Refactoring, DDD, Clean Architecture and DDIA programming books.",
+      "category": "AI增强",
+      "users": "2.3k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/ciembor/agent-rules-books",
+      "rank": 83
+    },
+    {
+      "name": "softaworks/agent-toolkit",
+      "description": "A curated collection of skills for AI coding agents. Skills are packaged instructions and scripts that extend agent capabilities across development, documentation, planning, and professional workflows",
+      "category": "AI增强",
+      "users": "2.2k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/softaworks/agent-toolkit",
+      "rank": 84
+    },
+    {
+      "name": "citrolabs/ego-lite",
+      "description": "The fastest browser for AI agents to run web automation, built for sharing your logged-in browser state with your AI agents, like Codex or Claude Code, without disturbing you. Zero cost, zero config.",
+      "category": "工具",
+      "users": "2.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/citrolabs/ego-lite",
+      "rank": 85
+    },
+    {
+      "name": "antonbabenko/terraform-skill",
+      "description": "Terraform & OpenTofu Skill for AI Agents - testing, modules, CI/CD, and production patterns",
+      "category": "AI增强",
+      "users": "2.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/antonbabenko/terraform-skill",
+      "rank": 86
+    },
+    {
+      "name": "dstackai/dstack",
+      "description": "Vendor-agnostic orchestration for training, inference and agentic workloads across NVIDIA, AMD, TPU, and Tenstorrent on clouds, Kubernetes, and bare metal.",
+      "category": "AI",
+      "users": "2.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/dstackai/dstack",
+      "rank": 87
+    },
+    {
+      "name": "DenisSergeevitch/agents-best-practices",
+      "description": "Provider-neutral Agent Skill for Codex, Claude Code, and agentic harness design.",
+      "category": "AI增强",
+      "users": "2.2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/DenisSergeevitch/agents-best-practices",
+      "rank": 88
+    },
+    {
+      "name": "yaojingang/yao-meta-skill",
+      "description": "YAO = Yielding AI Outcomes. A rigorous engineering, evaluation, governance, and portability system for reusable agent skills.",
+      "category": "AI增强",
+      "users": "2.1k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/yaojingang/yao-meta-skill",
+      "rank": 89
+    },
+    {
+      "name": "bergside/awesome-design-skills",
+      "description": "List of 67 awesome DESIGN.md and SKILL.md design skill files for agentic tools like Claude Design, Google Stitch, Codex, Cursor, and other AI tools",
+      "category": "AI增强",
+      "users": "2k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/bergside/awesome-design-skills",
+      "rank": 90
+    },
+    {
+      "name": "Sahir619/fable-method",
+      "description": "The Fable Workflow: how Claude Fable 5 worked, distilled into skills any model can run, with the eval that keeps it honest. Think / act / prove.",
+      "category": "AI增强",
+      "users": "1.9k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/Sahir619/fable-method",
+      "rank": 91
+    },
+    {
+      "name": "JuneYaooo/nihaisha-nishi-tcm",
+      "description": "倪海厦中医课程资料的 Agent Skill：支持课程检索、方证穴位辨析、学习笔记整理与板书截图证据索引。 |  An Agent Skill for Ni Haisha TCM course study, formula-pattern lookup, acupoint reference, and screenshot evidence indexing.",
+      "category": "AI",
+      "users": "1.7k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/JuneYaooo/nihaisha-nishi-tcm",
+      "rank": 92
+    },
+    {
+      "name": "wondelai/skills",
+      "description": "Wondel.ai Agent Skills — Business, Marketing, UX & Coding Frameworks from Bestselling Books. 50 skills + 12 guided journeys for Claude Code, Codex, Cursor & other agentskills.io agents.",
+      "category": "AI增强",
+      "users": "1.7k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/wondelai/skills",
+      "rank": 93
+    },
+    {
+      "name": "bergside/typeui",
+      "description": "Build better UI with AI",
+      "category": "工具",
+      "users": "1.6k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/bergside/typeui",
+      "rank": 94
+    },
+    {
+      "name": "AvdLee/Swift-Concurrency-Agent-Skill",
+      "description": "Add expert Swift Concurrency guidance to your AI coding tool (Agent Skills open format): safe concurrency, performance optimization, and Swift 6 migration.",
+      "category": "AI增强",
+      "users": "1.6k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/AvdLee/Swift-Concurrency-Agent-Skill",
+      "rank": 95
+    },
+    {
+      "name": "a5c-ai/babysitter",
+      "description": "Babysitter enforces obedience on agentic workforces and enables them to manage extremely complex tasks and workflows through deterministic, hallucination-free self-orchestration",
+      "category": "AI增强",
+      "users": "1.6k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/a5c-ai/babysitter",
+      "rank": 96
+    },
+    {
+      "name": "codeaholicguy/ai-devkit",
+      "description": "The control plane for AI coding agents.",
+      "category": "工具",
+      "users": "1.6k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/codeaholicguy/ai-devkit",
+      "rank": 97
+    },
+    {
+      "name": "NarratorAI-Studio/narrator-ai-cli-skill",
+      "description": "AI 解说大师 — Agent skill；封装 narrator-ai-cli 供 Claude/Codex 等工具调用",
+      "category": "工具",
+      "users": "1.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/NarratorAI-Studio/narrator-ai-cli-skill",
+      "rank": 98
+    },
+    {
+      "name": "Kaelio/ktx",
+      "description": "ktx is an executable context layer for data and analytics agents 🐙 Allow Claude Code, Codex, or other AI agents to query analytical databases accurately and with full context of your company",
+      "category": "AI增强",
+      "users": "1.5k",
+      "source": "github",
+      "trend": "up",
+      "url": "https://github.com/Kaelio/ktx",
+      "rank": 99
+    },
+    {
+      "name": "OpenRaiser/NanoResearch",
+      "description": "🦞+🔬 NanoResearch: The Autonomous AI Research Assistant",
+      "category": "AI增强",
+      "users": "1.5k",
+      "source": "github",
+      "trend": "stable",
+      "url": "https://github.com/OpenRaiser/NanoResearch",
+      "rank": 100
+    }
+  ]
+}

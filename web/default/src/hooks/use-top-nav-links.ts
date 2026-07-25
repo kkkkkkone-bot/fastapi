@@ -86,6 +86,17 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Rankings'), href: '/rankings', requiresAuth })
   }
 
+  // Skill Ranking (static-JSON driven leaderboard, route is auth-guarded)
+  const skillRanking = modules?.skillRanking
+  if (skillRanking && typeof skillRanking === 'object' && skillRanking.enabled) {
+    const requiresAuth = skillRanking.requireAuth && !isAuthed
+    links.push({
+      title: t('Skill Ranking'),
+      href: '/skill-ranking',
+      requiresAuth,
+    })
+  }
+
   // Docs (supports external links)
   if (modules?.docs !== false) {
     if (docsLink) {

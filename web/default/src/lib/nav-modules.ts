@@ -20,13 +20,20 @@ import { getStatus } from '@/lib/api'
 
 export type ModuleAccess = { enabled: boolean; requireAuth: boolean }
 
-export type HeaderNavModule = 'rankings' | 'pricing'
+export type HeaderNavModule = 'rankings' | 'pricing' | 'skillRanking'
 
 export type HeaderNavModules = {
   home: boolean
   console: boolean
   pricing: ModuleAccess
   rankings: ModuleAccess
+  /**
+   * Skill Ranking module: links to the static JSON driven skill leaderboard
+   * (`/skill-ranking`). Defaults to enabled + requireAuth so the link shows
+   * in the top nav and the page itself is protected by the `_authenticated`
+   * route guard (logged-out users are redirected to sign-in on click).
+   */
+  skillRanking: ModuleAccess
   docs: boolean
   about: boolean
   [key: string]: boolean | ModuleAccess
@@ -37,6 +44,7 @@ const DEFAULT_HEADER_NAV_MODULES: HeaderNavModules = {
   console: true,
   pricing: { enabled: true, requireAuth: false },
   rankings: { enabled: true, requireAuth: false },
+  skillRanking: { enabled: true, requireAuth: true },
   docs: true,
   about: true,
 }
@@ -44,6 +52,7 @@ const DEFAULT_HEADER_NAV_MODULES: HeaderNavModules = {
 const DEFAULTS: Record<HeaderNavModule, ModuleAccess> = {
   pricing: DEFAULT_HEADER_NAV_MODULES.pricing,
   rankings: DEFAULT_HEADER_NAV_MODULES.rankings,
+  skillRanking: DEFAULT_HEADER_NAV_MODULES.skillRanking,
 }
 
 function cloneHeaderNavDefaults(): HeaderNavModules {
@@ -51,6 +60,7 @@ function cloneHeaderNavDefaults(): HeaderNavModules {
     ...DEFAULT_HEADER_NAV_MODULES,
     pricing: { ...DEFAULT_HEADER_NAV_MODULES.pricing },
     rankings: { ...DEFAULT_HEADER_NAV_MODULES.rankings },
+    skillRanking: { ...DEFAULT_HEADER_NAV_MODULES.skillRanking },
   }
 }
 
@@ -116,6 +126,10 @@ export function parseHeaderNavModules(raw: unknown): HeaderNavModules {
     }
     if (key === 'rankings') {
       result.rankings = parseAccess(value, result.rankings)
+      return
+    }
+    if (key === 'skillRanking') {
+      result.skillRanking = parseAccess(value, result.skillRanking)
       return
     }
 
