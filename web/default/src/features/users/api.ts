@@ -71,6 +71,38 @@ export async function searchUsers(
 }
 
 /**
+ * Export users as a CSV file. The backend streams the response with
+ * `Content-Disposition: attachment`, so the browser triggers a download.
+ *
+ * Uses the same filters as `searchUsers` (keyword / group / role / status)
+ * but without pagination — useful for offline analysis reports.
+ *
+ * Returns both the blob and the original response so the caller can
+ * read the `Content-Disposition` header for the suggested filename.
+ */
+export async function exportUsers(
+  params: SearchUsersParams
+): Promise<{ blob: Blob; headers: Record<string, string> }> {
+  const {
+    keyword = '',
+    group = '',
+    role = '',
+    status = '',
+  } = params
+  const queryParams = new URLSearchParams()
+  queryParams.set('keyword', keyword)
+  queryParams.set('group', group)
+  if (role) queryParams.set('role', role)
+  if (status) queryParams.set('status', status)
+  const res = await api.get(
+    `/api/user/export?${queryParams.toString()}`,
+    { responseType: 'blob' }
+  )
+  // axios lowercases all header names in browsers
+  return { blob: res.data as Blob, headers: (res.headers || {}) as Record<string, string> }
+}
+
+/**
  * Get single user by ID
  */
 export async function getUser(id: number): Promise<ApiResponse<User>> {

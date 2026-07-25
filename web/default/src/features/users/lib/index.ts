@@ -22,6 +22,11 @@ For commercial licensing, please contact support@quantumnous.com
 export { getUserActionMessage } from './user-actions'
 
 // ============================================================================
+// Export Utilities
+// ============================================================================
+export { downloadUsersCsv } from './user-export'
+
+// ============================================================================
 // Form Utilities
 // ============================================================================
 export {

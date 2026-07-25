@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -347,6 +349,154 @@ func SearchUsers(c *gin.Context) {
 	pageInfo.SetItems(users)
 	common.ApiSuccess(c, pageInfo)
 	return
+}
+
+// roleLabel / statusLabel 用于导出 CSV 时给出可读的角色 / 状态名。
+func roleLabel(role int) string {
+	switch role {
+	case common.RoleRootUser:
+		return "Root"
+	case common.RoleAdminUser:
+		return "Admin"
+	case common.RoleCommonUser:
+		return "User"
+	default:
+		return strconv.Itoa(role)
+	}
+}
+
+func statusLabel(status int, deleted bool) string {
+	if deleted {
+		return "Deleted"
+	}
+	switch status {
+	case common.UserStatusEnabled:
+		return "Enabled"
+	case common.UserStatusDisabled:
+		return "Disabled"
+	default:
+		return strconv.Itoa(status)
+	}
+}
+
+// formatUnixSeconds 将秒级 Unix 时间戳格式化为本地时间字符串，便于在 Excel 中阅读。
+// 返回 "-" 表示无有效时间。
+func formatUnixSeconds(ts int64) string {
+	if ts <= 0 {
+		return "-"
+	}
+	return time.Unix(ts, 0).Local().Format("2006-01-02 15:04:05")
+}
+
+// ExportUsers 以 CSV 格式导出满足条件的全部用户，附带 UTF-8 BOM 以便 Excel 直接打开。
+// 支持的查询参数与 SearchUsers 一致：keyword / group / role / status。
+// 注意：本接口不进行分页，请仅限管理员在后台用于离线分析。
+func ExportUsers(c *gin.Context) {
+	keyword := c.Query("keyword")
+	group := c.Query("group")
+	var role *int
+	if roleStr := c.Query("role"); roleStr != "" {
+		if parsed, err := strconv.Atoi(roleStr); err == nil {
+			role = &parsed
+		}
+	}
+	var status *int
+	if statusStr := c.Query("status"); statusStr != "" {
+		if parsed, err := strconv.Atoi(statusStr); err == nil {
+			status = &parsed
+		}
+	}
+
+	users, err := model.ExportUsers(keyword, group, role, status)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	filename := fmt.Sprintf("users_export_%s.csv", time.Now().Local().Format("20060102_150405"))
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Header("X-Content-Type-Options", "nosniff")
+
+	// UTF-8 BOM，让 Excel 正确识别中文等非 ASCII 字符。
+	if _, err := c.Writer.Write([]byte{0xEF, 0xBB, 0xBF}); err != nil {
+		common.SysLog(fmt.Sprintf("export users: write BOM failed: %s", err.Error()))
+		return
+	}
+
+	writer := csv.NewWriter(c.Writer)
+	// 表头：选择对分析报表最有价值的字段
+	header := []string{
+		"ID",
+		"Username",
+		"Display Name",
+		"Email",
+		"Role",
+		"Status",
+		"Group",
+		"Quota",
+		"Used Quota",
+		"Used Ratio",
+		"Request Count",
+		"Aff Count",
+		"Aff Quota",
+		"Aff History Quota",
+		"Inviter ID",
+		"GitHub ID",
+		"OIDC ID",
+		"WeChat ID",
+		"Telegram ID",
+		"LinuxDO ID",
+		"Remark",
+		"Created At",
+		"Last Login At",
+	}
+	if err := writer.Write(header); err != nil {
+		common.SysLog(fmt.Sprintf("export users: write header failed: %s", err.Error()))
+		return
+	}
+
+	for _, u := range users {
+		deleted := u.DeletedAt.Valid
+		usedRatio := "-"
+		if u.Quota > 0 {
+			usedRatio = fmt.Sprintf("%.2f%%", float64(u.UsedQuota)/float64(u.Quota)*100)
+		}
+		row := []string{
+			strconv.Itoa(u.Id),
+			u.Username,
+			u.DisplayName,
+			u.Email,
+			roleLabel(u.Role),
+			statusLabel(u.Status, deleted),
+			u.Group,
+			strconv.Itoa(u.Quota),
+			strconv.Itoa(u.UsedQuota),
+			usedRatio,
+			strconv.Itoa(u.RequestCount),
+			strconv.Itoa(u.AffCount),
+			strconv.Itoa(u.AffQuota),
+			strconv.Itoa(u.AffHistoryQuota),
+			strconv.Itoa(u.InviterId),
+			u.GitHubId,
+			u.OidcId,
+			u.WeChatId,
+			u.TelegramId,
+			u.LinuxDOId,
+			u.Remark,
+			formatUnixSeconds(u.CreatedAt),
+			formatUnixSeconds(u.LastLoginAt),
+		}
+		if err := writer.Write(row); err != nil {
+			common.SysLog(fmt.Sprintf("export users: write row %d failed: %s", u.Id, err.Error()))
+			// 单行写入失败不影响整体导出，仅记录
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		common.SysLog(fmt.Sprintf("export users: flush writer failed: %s", err.Error()))
+	}
 }
 
 func canManageTargetRole(myRole int, targetRole int) bool {

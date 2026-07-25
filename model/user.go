@@ -388,6 +388,45 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	return users, total, nil
 }
 
+// ExportUsers 获取满足条件的所有用户列表（无分页），用于后台导出报表。
+// 过滤条件与 SearchUsers 保持一致，但不会限制返回条数。
+func ExportUsers(keyword string, group string, role *int, status *int) ([]*User, error) {
+	var users []*User
+
+	query := DB.Unscoped().Model(&User{})
+
+	// 关键字搜索：与 SearchUsers 保持一致 (id / username / email / display_name)
+	if keyword != "" {
+		likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
+		likeArgs := []interface{}{"%" + keyword + "%", "%" + keyword + "%", "%" + keyword + "%"}
+
+		if keywordInt, err := strconv.Atoi(keyword); err == nil {
+			likeCondition = "id = ? OR " + likeCondition
+			likeArgs = append([]interface{}{keywordInt}, likeArgs...)
+		}
+		query = query.Where("("+likeCondition+")", likeArgs...)
+	}
+	if group != "" {
+		query = query.Where(commonGroupCol+" = ?", group)
+	}
+	if role != nil {
+		query = query.Where("role = ?", *role)
+	}
+	if status != nil {
+		if *status == -1 {
+			query = query.Where("deleted_at IS NOT NULL")
+		} else {
+			query = query.Where("deleted_at IS NULL").Where("status = ?", *status)
+		}
+	}
+
+	// 导出时排除敏感字段；按 id 升序，便于核对。
+	if err := query.Omit("password", "access_token").Order("id asc").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func GetUserById(id int, selectAll bool) (*User, error) {
 	if id == 0 {
 		return nil, errors.New("id 为空！")
