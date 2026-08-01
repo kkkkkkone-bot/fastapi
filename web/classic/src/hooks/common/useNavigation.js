@@ -60,6 +60,12 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
           ]
         : []),
       {
+        text: t('PLUS会员'),
+        itemKey: 'plus',
+        isExternal: true,
+        externalLink: 'https://pay.ldxp.cn/shop/6YG68VJ1',
+      },
+      {
         text: t('关于'),
         itemKey: 'about',
         to: '/about',
@@ -68,6 +74,10 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
 
     // 根据配置过滤导航链接
     return allLinks.filter((link) => {
+      // PLUS会员为外链入口，始终显示，不受 HeaderNavModules 配置控制
+      if (link.itemKey === 'plus') {
+        return true;
+      }
       if (link.itemKey === 'docs') {
         return docsLink && modules.docs;
       }

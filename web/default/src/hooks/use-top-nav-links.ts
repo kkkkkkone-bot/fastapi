@@ -106,6 +106,13 @@ export function useTopNavLinks(): TopNavLink[] {
     }
   }
 
+  // PLUS会员 (external shop link, always shown)
+  links.push({
+    title: 'PLUS会员',
+    href: 'https://pay.ldxp.cn/shop/6YG68VJ1',
+    external: true,
+  })
+
   // About
   if (modules?.about !== false) {
     links.push({ title: t('About'), href: '/about' })
