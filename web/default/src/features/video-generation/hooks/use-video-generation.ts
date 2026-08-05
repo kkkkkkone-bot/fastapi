@@ -133,7 +133,7 @@ export function useVideoGeneration() {
   const [group, setGroup] = useState(DEFAULT_GROUP)
   const [model, setModel] = useState('')
   const [aspectRatio, setAspectRatio] = useState('16:9')
-  const [duration, setDuration] = useState(5)
+  const [duration, setDuration] = useState(15)
   const [referenceImages, setReferenceImages] = useState<VideoReferenceImage[]>(
     []
   )

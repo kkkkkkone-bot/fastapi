@@ -39,10 +39,10 @@ export function getVideoAspectRatios(model: string): string[] {
 
 export function getVideoDurations(model: string): number[] {
   const normalizedModel = model.toLowerCase()
-  if (normalizedModel.startsWith('sora-2')) return [4, 8, 12]
-  if (normalizedModel.includes('veo-')) return [4, 6, 8]
-  if (normalizedModel.includes('hailuo')) return [6, 10]
-  return [5, 10]
+  if (normalizedModel.startsWith('sora-2')) return [15, 4, 8, 12]
+  if (normalizedModel.includes('veo-')) return [15, 4, 6, 8]
+  if (normalizedModel.includes('hailuo')) return [15, 6, 10]
+  return [15, 5, 10]
 }
 
 export function resolveVideoSize(aspectRatio: string): string {

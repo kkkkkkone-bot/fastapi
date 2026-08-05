@@ -19,6 +19,16 @@ var (
 		"flux.1-",
 		"seedream-",
 		"jimeng_high_aes_general",
+		"wanx",
+		"qwen-image",
+		"z-image",
+		"image-01",
+		"stable-diffusion",
+		"sdxl",
+		"playground",
+		"recraft",
+		"ideogram",
+		"kandinsky",
 	}
 	VideoGenerationModels = []string{
 		"sora-",
