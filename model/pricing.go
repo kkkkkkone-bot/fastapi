@@ -405,6 +405,10 @@ func updatePricing() {
 				pricing.BillingMode = billingMode
 				pricing.BillingExpr = expr
 			}
+		} else if billingMode == billing_setting.BillingModePerSecond {
+			// 按秒计费：基础价（$/秒）由 ModelPrice 提供，
+			// 实际秒数由任务适配器在 EstimateBilling 中返回并参与乘积。
+			pricing.BillingMode = billingMode
 		}
 		pricingMap = append(pricingMap, pricing)
 	}

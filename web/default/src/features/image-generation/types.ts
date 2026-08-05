@@ -27,6 +27,12 @@ export interface ImageGenerationRequest {
   response_format?: 'url' | 'b64_json'
 }
 
+export interface ReferenceImage {
+  id: string
+  file: File
+  previewUrl: string
+}
+
 // OpenAI image generation item in the response.
 export interface ImageDataItem {
   url?: string
@@ -58,4 +64,27 @@ export type GenerationStatus = 'idle' | 'loading' | 'success' | 'error'
 export interface GenerationResult {
   images: { url?: string; b64_json?: string }[]
   revisedPrompt?: string
+}
+
+export interface GenerationRecord extends GenerationResult {
+  id: string
+  createdAt: number
+  prompt: string
+  model: string
+  aspectRatio: string
+  resolution: string
+  quality: string
+}
+
+export interface AspectRatioOption {
+  label: string
+  value: string
+  width?: number
+  height?: number
+}
+
+export interface ImageModelProfile {
+  aspectRatios: string[]
+  resolutions: string[]
+  qualities: string[]
 }

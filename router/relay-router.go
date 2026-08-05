@@ -70,6 +70,13 @@ func SetRelayRouter(router *gin.Engine) {
 		playgroundRouter.POST("/images/generations", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
+		playgroundRouter.POST("/images/edits", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIImage)
+		})
+		// Video generation uses the existing asynchronous task pipeline while
+		// authenticating with the dashboard session instead of an API token.
+		playgroundRouter.POST("/videos", controller.RelayTask)
+		playgroundRouter.GET("/videos/:task_id", controller.RelayTaskFetch)
 	}
 	relayV1Router := router.Group("/v1")
 	relayV1Router.Use(middleware.RouteTag("relay"))

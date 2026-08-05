@@ -67,6 +67,16 @@ export function SidebarModulesCard() {
           description: t('AI model testing environment'),
         },
         {
+          key: 'image_gen',
+          title: t('Image Generation'),
+          description: t('Create images with available models'),
+        },
+        {
+          key: 'video_gen',
+          title: t('Video Generation'),
+          description: t('Create videos and track task progress'),
+        },
+        {
           key: 'chat',
           title: t('Chat'),
           description: t('Chat session management'),

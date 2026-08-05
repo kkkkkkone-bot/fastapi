@@ -92,6 +92,14 @@ export function SidebarModulesSection({
         title: t('Playground'),
         description: t('Experiment with prompts and models in real time.'),
       },
+      image_gen: {
+        title: t('Image Generation'),
+        description: t('Create images with models available on the site.'),
+      },
+      video_gen: {
+        title: t('Video Generation'),
+        description: t('Create and track asynchronous video generation tasks.'),
+      },
       chat: {
         title: t('Chat'),
         description: t('Access previous conversations and start new ones.'),

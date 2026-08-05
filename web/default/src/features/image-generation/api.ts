@@ -28,14 +28,36 @@ import type {
 // Endpoint mirrors /v1/images/generations but uses session auth (like the
 // playground) so the web UI can call it without an API key.
 export const IMAGE_GEN_ENDPOINT = '/pg/images/generations'
+export const IMAGE_EDIT_ENDPOINT = '/pg/images/edits'
 
 /**
  * Generate images via the session-authenticated playground endpoint.
  */
 export async function generateImages(
   payload: ImageGenerationRequest,
+  referenceImages: File[] = [],
   signal?: AbortSignal
 ): Promise<ImageGenerationResponse> {
+  if (referenceImages.length > 0) {
+    const formData = new FormData()
+    formData.append('model', payload.model)
+    formData.append('prompt', payload.prompt)
+    formData.append('n', String(payload.n ?? 1))
+    if (payload.group) formData.append('group', payload.group)
+    if (payload.size) formData.append('size', payload.size)
+    if (payload.quality) formData.append('quality', payload.quality)
+    if (payload.response_format) {
+      formData.append('response_format', payload.response_format)
+    }
+    referenceImages.forEach((file) => formData.append('image', file, file.name))
+
+    const res = await api.post(IMAGE_EDIT_ENDPOINT, formData, {
+      signal,
+      skipErrorHandler: true,
+    } as Record<string, unknown>)
+    return res.data
+  }
+
   const res = await api.post(IMAGE_GEN_ENDPOINT, payload, {
     signal,
     skipErrorHandler: true,
@@ -48,7 +70,7 @@ export async function generateImages(
  */
 export async function getUserModels(group: string): Promise<ModelOption[]> {
   const res = await api.get('/api/user/models', {
-    params: { group },
+    params: { group, endpoint_type: 'image-generation' },
   })
   const { data } = res
 

@@ -158,6 +158,12 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		var bodyMap map[string]interface{}
 		if err := common.Unmarshal(cachedBody, &bodyMap); err == nil {
 			bodyMap["model"] = info.UpstreamModelName
+			// Dashboard-only routing fields and generic task aliases are not
+			// accepted by the OpenAI-compatible Sora upstream.
+			delete(bodyMap, "group")
+			delete(bodyMap, "duration")
+			delete(bodyMap, "image")
+			delete(bodyMap, "images")
 			if newBody, err := common.Marshal(bodyMap); err == nil {
 				return bytes.NewReader(newBody), nil
 			}
@@ -174,7 +180,7 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		writer := multipart.NewWriter(&buf)
 		writer.WriteField("model", info.UpstreamModelName)
 		for key, values := range formData.Value {
-			if key == "model" {
+			if key == "model" || key == "group" {
 				continue
 			}
 			for _, v := range values {

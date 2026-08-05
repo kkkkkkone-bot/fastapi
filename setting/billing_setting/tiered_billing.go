@@ -11,6 +11,10 @@ import (
 const (
 	BillingModeRatio      = "ratio"
 	BillingModeTieredExpr = "tiered_expr"
+	// BillingModePerSecond 表示任务类模型按输出时长（秒）计费：
+	// 基础固定价（$/秒）乘以适配器返回的 seconds 乘数。
+	// 与 per-request（按次固定价，不乘秒数）互斥，需显式配置到 billing_mode map。
+	BillingModePerSecond = "per_second"
 	BillingModeField      = "billing_mode"
 	BillingExprField      = "billing_expr"
 )

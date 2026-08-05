@@ -215,6 +215,74 @@ func TestGetUserModelsFiltersByRequestedGroup(t *testing.T) {
 	require.Empty(t, decodeUserModelsResponse(t, vipRecorder))
 }
 
+func TestGetUserModelsFiltersByImageGenerationEndpoint(t *testing.T) {
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.Create(&model.User{
+		Id:       1003,
+		Username: "image-generation-user",
+		Password: "password",
+		Group:    "default",
+		Status:   common.UserStatusEnabled,
+	}).Error)
+	require.NoError(t, db.Create(&model.Channel{
+		Id:     301,
+		Name:   "image-generation-channel",
+		Type:   constant.ChannelTypeOpenAI,
+		Status: common.ChannelStatusEnabled,
+		Group:  "default",
+		Models: "gpt-image-1,gpt-4o-mini",
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Ability{
+		{Group: "default", Model: "gpt-image-1", ChannelId: 301, Enabled: true},
+		{Group: "default", Model: "gpt-4o-mini", ChannelId: 301, Enabled: true},
+	}).Error)
+	model.InvalidatePricingCache()
+	t.Cleanup(model.InvalidatePricingCache)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/user/models?group=default&endpoint_type=image-generation", nil)
+	ctx.Set("id", 1003)
+
+	GetUserModels(ctx)
+
+	require.Equal(t, []string{"gpt-image-1"}, decodeUserModelsResponse(t, recorder))
+}
+
+func TestGetUserModelsFiltersByVideoGenerationEndpoint(t *testing.T) {
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.Create(&model.User{
+		Id:       1004,
+		Username: "video-generation-user",
+		Password: "password",
+		Group:    "default",
+		Status:   common.UserStatusEnabled,
+	}).Error)
+	require.NoError(t, db.Create(&model.Channel{
+		Id:     302,
+		Name:   "video-generation-channel",
+		Type:   constant.ChannelTypeOpenAI,
+		Status: common.ChannelStatusEnabled,
+		Group:  "default",
+		Models: "veo-3.1-generate-preview,gpt-4o-mini",
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Ability{
+		{Group: "default", Model: "veo-3.1-generate-preview", ChannelId: 302, Enabled: true},
+		{Group: "default", Model: "gpt-4o-mini", ChannelId: 302, Enabled: true},
+	}).Error)
+	model.InvalidatePricingCache()
+	t.Cleanup(model.InvalidatePricingCache)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/user/models?group=default&endpoint_type=openai-video", nil)
+	ctx.Set("id", 1004)
+
+	GetUserModels(ctx)
+
+	require.Equal(t, []string{"veo-3.1-generate-preview"}, decodeUserModelsResponse(t, recorder))
+}
+
 func TestListModelsIncludesTieredBillingModel(t *testing.T) {
 	withSelfUseModeDisabled(t)
 	withTieredBillingConfig(t, map[string]string{

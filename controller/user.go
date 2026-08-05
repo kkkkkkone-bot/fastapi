@@ -707,6 +707,8 @@ func generateDefaultSidebarConfig(userRole int) string {
 	defaultConfig["chat"] = map[string]interface{}{
 		"enabled":    true,
 		"playground": true,
+		"image_gen":  true,
+		"video_gen":  true,
 		"chat":       true,
 	}
 
@@ -773,6 +775,7 @@ func GetUserModels(c *gin.Context) {
 	}
 	groups := service.GetUserUsableGroups(user.Group)
 	group := c.Query("group")
+	var models []string
 	if group != "" {
 		if _, ok := groups[group]; !ok {
 			c.JSON(http.StatusOK, gin.H{
@@ -782,23 +785,31 @@ func GetUserModels(c *gin.Context) {
 			})
 			return
 		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "",
-			"data":    model.GetGroupEnabledModels(group),
-		})
-		return
-	}
-
-	var models []string
-	for group := range groups {
-		for _, g := range model.GetGroupEnabledModels(group) {
-			if !common.StringsContains(models, g) {
-				models = append(models, g)
+		models = model.GetGroupEnabledModels(group)
+	} else {
+		for usableGroup := range groups {
+			for _, modelName := range model.GetGroupEnabledModels(usableGroup) {
+				if !common.StringsContains(models, modelName) {
+					models = append(models, modelName)
+				}
 			}
 		}
 	}
+
+	if endpointType := strings.TrimSpace(c.Query("endpoint_type")); endpointType != "" {
+		model.GetPricing()
+		filteredModels := make([]string, 0, len(models))
+		for _, modelName := range models {
+			for _, supportedEndpoint := range model.GetModelSupportEndpointTypes(modelName) {
+				if string(supportedEndpoint) == endpointType {
+					filteredModels = append(filteredModels, modelName)
+					break
+				}
+			}
+		}
+		models = filteredModels
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
