@@ -12,7 +12,8 @@ var (
 	ImageGenerationModels = []string{
 		"dall-e-3",
 		"dall-e-2",
-		"gpt-image-1",
+		"gpt-image-",
+		"grok",
 		"chatgpt-image-",
 		"prefix:imagen-",
 		"flux-",
@@ -69,15 +70,45 @@ func IsOpenAIResponseOnlyModel(modelName string) bool {
 
 func IsImageGenerationModel(modelName string) bool {
 	modelName = strings.ToLower(modelName)
-	for _, m := range ImageGenerationModels {
-		if strings.Contains(modelName, m) {
-			return true
+	prefixes := GetImageGenerationModelPrefixes()
+	if len(prefixes) == 0 {
+		// 后台未配置时回退到内置默认列表，保证开箱即用
+		prefixes = ImageGenerationModels
+	}
+	for _, m := range prefixes {
+		if strings.HasPrefix(m, "prefix:") {
+			if strings.HasPrefix(modelName, strings.TrimPrefix(m, "prefix:")) {
+				return true
+			}
+			continue
 		}
-		if strings.HasPrefix(m, "prefix:") && strings.HasPrefix(modelName, strings.TrimPrefix(m, "prefix:")) {
+		if strings.Contains(modelName, m) {
 			return true
 		}
 	}
 	return false
+}
+
+// GetImageGenerationModelPrefixes 返回运营在后台配置的「图片生成模型前缀」列表。
+// 它读取数据库托管的 OptionMap 中的 ImageGenerationModelPrefixes 项，
+// 让管理员无需重新编译即可新增图片模型家族（如 grok）。
+// 当该配置为空时返回 nil，调用方应回退到内置的 ImageGenerationModels 默认列表。
+func GetImageGenerationModelPrefixes() []string {
+	OptionMapRWMutex.RLock()
+	raw, ok := OptionMap["ImageGenerationModelPrefixes"]
+	OptionMapRWMutex.RUnlock()
+	if !ok || strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	prefixes := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			prefixes = append(prefixes, p)
+		}
+	}
+	return prefixes
 }
 
 func IsVideoGenerationModel(modelName string) bool {

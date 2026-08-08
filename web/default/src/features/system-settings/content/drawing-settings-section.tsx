@@ -27,10 +27,12 @@ import {
   FormControl,
   FormDescription,
   FormField,
+  FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 
 import {
   SettingsForm,
@@ -48,6 +50,7 @@ const drawingSchema = z.object({
   MjForwardUrlEnabled: z.boolean(),
   MjModeClearEnabled: z.boolean(),
   MjActionCheckSuccessEnabled: z.boolean(),
+  ImageGenerationModelPrefixes: z.string(),
 })
 
 type DrawingFormValues = z.infer<typeof drawingSchema>
@@ -81,7 +84,7 @@ export function DrawingSettingsSection({
   }
 
   const switches: Array<{
-    name: keyof DrawingFormValues
+    name: keyof Omit<DrawingFormValues, 'ImageGenerationModelPrefixes'>
     label: string
     description: string
   }> = [
@@ -162,6 +165,28 @@ export function DrawingSettingsSection({
               />
             ))}
           </div>
+          <FormField
+            control={form.control}
+            name='ImageGenerationModelPrefixes'
+            render={({ field }) => (
+              <FormItem data-settings-form-span='full'>
+                <FormLabel>{t('Image generation model prefixes')}</FormLabel>
+                <FormDescription>
+                  {t(
+                    'Comma-separated model name prefixes recognized as image generation models. Leave empty to use the built-in defaults.'
+                  )}
+                </FormDescription>
+                <FormControl>
+                  <Textarea
+                    rows={4}
+                    placeholder='dall-e-3, gpt-image-, grok, flux-, seedream-, ...'
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </SettingsForm>
       </Form>
     </SettingsSection>

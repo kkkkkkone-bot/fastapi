@@ -2291,6 +2291,8 @@
     "Image Gen Page description": "Turn a prompt and optional reference images into finished visuals, then keep iterating from your session history.",
     "Image Gen Prompt placeholder": "Describe the subject, composition, lighting, style, colors, and details you want...",
     "Image Gen Prompt required": "Enter a prompt before generating",
+    "Image generation model prefixes": "Image generation model prefixes",
+    "Comma-separated model name prefixes recognized as image generation models. Leave empty to use the built-in defaults.": "Comma-separated model name prefixes recognized as image generation models. Leave empty to use the built-in defaults.",
     "Image Gen Ready to create": "Ready to create",
     "Image Gen Reference image count limit": "You can add up to 5 reference images",
     "Image Gen Reference image size limit": "Each reference image must be 10 MB or smaller",

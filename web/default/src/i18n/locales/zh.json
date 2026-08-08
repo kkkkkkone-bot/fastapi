@@ -2291,6 +2291,8 @@
     "Image Gen Page description": "通过提示词和参考图完成创作，并在当前会话中持续比较、调整和再次生成。",
     "Image Gen Prompt placeholder": "描述主体、构图、光线、风格、色彩以及你希望保留的细节……",
     "Image Gen Prompt required": "请先输入提示词",
+    "Image generation model prefixes": "图片生成模型前缀",
+    "Comma-separated model name prefixes recognized as image generation models. Leave empty to use the built-in defaults.": "逗号分隔的模型名前缀，命中即识别为图片生成模型。留空则使用系统内置默认列表。",
     "Image Gen Ready to create": "已准备好生成",
     "Image Gen Reference image count limit": "最多可添加 5 张参考图",
     "Image Gen Reference image size limit": "每张参考图不能超过 10 MB",
