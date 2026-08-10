@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toIntlLocale } from '@/i18n/languages'
 import { cn } from '@/lib/utils'
 
 import { CUSTOM_ASPECT_RATIO } from '../constants'
@@ -100,7 +101,7 @@ export function GenerationHistory(props: GenerationHistoryProps) {
                       ? t('Image Gen Custom')
                       : record.aspectRatio}{' '}
                     · {record.resolution} ·{' '}
-                    {new Intl.DateTimeFormat(i18n.language, {
+                    {new Intl.DateTimeFormat(toIntlLocale(i18n.language), {
                       hour: '2-digit',
                       minute: '2-digit',
                     }).format(record.createdAt)}

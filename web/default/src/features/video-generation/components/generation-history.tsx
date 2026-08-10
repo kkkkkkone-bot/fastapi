@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Progress, ProgressLabel } from '@/components/ui/progress'
+import { toIntlLocale } from '@/i18n/languages'
 
 import type { VideoGenerationRecord } from '../types'
 
@@ -105,7 +106,7 @@ export function GenerationHistory(props: GenerationHistoryProps) {
                   <p className='text-muted-foreground mt-1 text-xs'>
                     {record.model} · {record.aspectRatio} ·{' '}
                     {t('Video Gen Seconds', { count: record.duration })} ·{' '}
-                    {new Intl.DateTimeFormat(i18n.language, {
+                    {new Intl.DateTimeFormat(toIntlLocale(i18n.language), {
                       hour: '2-digit',
                       minute: '2-digit',
                     }).format(record.createdAt)}
