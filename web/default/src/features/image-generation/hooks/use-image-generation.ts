@@ -21,6 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { useAuthStore } from '@/stores/auth-store'
+
 import { generateImages, getUserGroups, getUserModels } from '../api'
 import {
   getImageModelProfile,
@@ -29,6 +31,11 @@ import {
   resolveImageQuality,
   resolveImageSize,
 } from '../constants'
+import {
+  clearImageGenerationHistory,
+  loadImageGenerationHistory,
+  saveImageGenerationHistory,
+} from '../history-storage'
 import type {
   GenerationRecord,
   GroupOption,
@@ -45,6 +52,7 @@ function createRecordId(): string {
 
 export function useImageGeneration() {
   const { t } = useTranslation()
+  const userId = useAuthStore((state) => state.auth.user?.id)
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState(DEFAULT_MODEL)
   const [group, setGroup] = useState(DEFAULT_GROUP)
@@ -57,7 +65,9 @@ export function useImageGeneration() {
   const [status, setStatus] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle')
-  const [history, setHistory] = useState<GenerationRecord[]>([])
+  const [history, setHistory] = useState<GenerationRecord[]>(() =>
+    loadImageGenerationHistory(userId)
+  )
   const [errorMsg, setErrorMsg] = useState('')
 
   const modelProfile = useMemo(() => getImageModelProfile(model), [model])
@@ -120,6 +130,10 @@ export function useImageGeneration() {
   useEffect(() => {
     referenceImagesRef.current = referenceImages
   }, [referenceImages])
+
+  useEffect(() => {
+    setHistory(loadImageGenerationHistory(userId))
+  }, [userId])
 
   useEffect(() => {
     return () => {
@@ -217,7 +231,11 @@ export function useImageGeneration() {
         resolution,
         quality,
       }
-      setHistory((currentHistory) => [record, ...currentHistory])
+      setHistory((currentHistory) => {
+        const nextHistory = [record, ...currentHistory]
+        saveImageGenerationHistory(userId, nextHistory)
+        return nextHistory
+      })
       setStatus('success')
     } catch (error: unknown) {
       const responseError = error as {
@@ -245,6 +263,7 @@ export function useImageGeneration() {
     referenceImages,
     resolution,
     t,
+    userId,
   ])
 
   const reuseRecord = useCallback((record: GenerationRecord) => {
@@ -257,9 +276,10 @@ export function useImageGeneration() {
 
   const clearHistory = useCallback(() => {
     setHistory([])
+    clearImageGenerationHistory(userId)
     setStatus('idle')
     setErrorMsg('')
-  }, [])
+  }, [userId])
 
   return {
     prompt,

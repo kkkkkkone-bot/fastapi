@@ -21,6 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { useAuthStore } from '@/stores/auth-store'
+
 import {
   fetchVideoTask,
   getVideoContentUrl,
@@ -36,6 +38,11 @@ import {
   resolveVideoSize,
   VIDEO_POLL_INTERVAL_MS,
 } from '../constants'
+import {
+  clearVideoGenerationHistory,
+  loadVideoGenerationHistory,
+  saveVideoGenerationHistory,
+} from '../history-storage'
 import type {
   VideoGenerationRecord,
   VideoGroupOption,
@@ -127,8 +134,17 @@ function waitForNextPoll(signal: AbortSignal): Promise<void> {
   })
 }
 
+function loadStoredHistory(userId?: number): VideoGenerationRecord[] {
+  return loadVideoGenerationHistory(userId).map((record) =>
+    record.status === 'completed'
+      ? { ...record, videoUrl: getVideoContentUrl(record.id) }
+      : record
+  )
+}
+
 export function useVideoGeneration() {
   const { t } = useTranslation()
+  const userId = useAuthStore((state) => state.auth.user?.id)
   const [prompt, setPrompt] = useState('')
   const [group, setGroup] = useState(DEFAULT_GROUP)
   const [model, setModel] = useState('')
@@ -140,9 +156,12 @@ export function useVideoGeneration() {
   const [status, setStatus] = useState<WorkspaceStatus>('idle')
   const [progress, setProgress] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
-  const [history, setHistory] = useState<VideoGenerationRecord[]>([])
+  const [history, setHistory] = useState<VideoGenerationRecord[]>(() =>
+    loadStoredHistory(userId)
+  )
   const referencesRef = useRef<VideoReferenceImage[]>([])
   const requestAbortRef = useRef<AbortController | null>(null)
+  const restoredTaskIdsRef = useRef(new Set<string>())
 
   const { data: groupsData } = useQuery({
     queryKey: ['video-gen-groups'],
@@ -193,6 +212,16 @@ export function useVideoGeneration() {
   useEffect(() => {
     referencesRef.current = referenceImages
   }, [referenceImages])
+
+  useEffect(() => {
+    const storedHistory = loadStoredHistory(userId)
+    restoredTaskIdsRef.current = new Set(
+      storedHistory
+        .filter((record) => ['queued', 'in_progress'].includes(record.status))
+        .map((record) => record.id)
+    )
+    setHistory(storedHistory)
+  }, [userId])
 
   useEffect(() => {
     return () => {
@@ -258,10 +287,13 @@ export function useVideoGeneration() {
         (taskStatus === 'completed' ? getVideoContentUrl(taskId) : undefined)
       const taskError = taskErrorMessage(task)
 
+      if (!['queued', 'in_progress'].includes(taskStatus)) {
+        restoredTaskIdsRef.current.delete(taskId)
+      }
       setProgress(taskProgress)
       setStatus(toWorkspaceStatus(taskStatus))
-      setHistory((current) =>
-        current.map((record) =>
+      setHistory((current) => {
+        const nextHistory = current.map((record) =>
           record.id === taskId
             ? {
                 ...record,
@@ -272,11 +304,66 @@ export function useVideoGeneration() {
               }
             : record
         )
-      )
+        saveVideoGenerationHistory(userId, nextHistory)
+        return nextHistory
+      })
       return taskStatus
     },
-    []
+    [userId]
   )
+
+  const pendingTaskIds = useMemo(
+    () =>
+      history
+        .filter(
+          (record) =>
+            restoredTaskIdsRef.current.has(record.id) &&
+            ['queued', 'in_progress'].includes(record.status)
+        )
+        .map((record) => record.id)
+        .join(','),
+    [history]
+  )
+
+  useEffect(() => {
+    if (!pendingTaskIds) return
+
+    const abortController = new AbortController()
+    const taskIds = pendingTaskIds.split(',')
+
+    async function restorePendingTasks() {
+      while (!abortController.signal.aborted) {
+        let hasPendingTask = false
+
+        await Promise.all(
+          taskIds.map(async (taskId) => {
+            try {
+              const task = await fetchVideoTask(taskId, abortController.signal)
+              const taskStatus = applyTaskUpdate(taskId, task)
+              if (['queued', 'in_progress'].includes(taskStatus)) {
+                hasPendingTask = true
+              }
+            } catch (error: unknown) {
+              if ((error as { name?: string }).name !== 'AbortError') {
+                hasPendingTask = true
+              }
+            }
+          })
+        )
+
+        if (!hasPendingTask || abortController.signal.aborted) return
+
+        try {
+          await waitForNextPoll(abortController.signal)
+        } catch {
+          return
+        }
+      }
+    }
+
+    void restorePendingTasks()
+    return () => abortController.abort()
+  }, [applyTaskUpdate, pendingTaskIds])
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) {
@@ -329,10 +416,14 @@ export function useVideoGeneration() {
         status: normalizeStatus(response.status),
         progress: response.progress ?? 0,
       }
-      setHistory((current) => [
-        record,
-        ...current.filter((item) => item.id !== taskId),
-      ])
+      setHistory((current) => {
+        const nextHistory = [
+          record,
+          ...current.filter((item) => item.id !== taskId),
+        ]
+        saveVideoGenerationHistory(userId, nextHistory)
+        return nextHistory
+      })
       setStatus('queued')
 
       while (!abortController.signal.aborted) {
@@ -358,13 +449,15 @@ export function useVideoGeneration() {
       setStatus('error')
       setErrorMsg(message)
       if (taskId) {
-        setHistory((current) =>
-          current.map((record) =>
+        setHistory((current) => {
+          const nextHistory: VideoGenerationRecord[] = current.map((record) =>
             record.id === taskId
               ? { ...record, status: 'failed', error: message }
               : record
           )
-        )
+          saveVideoGenerationHistory(userId, nextHistory)
+          return nextHistory
+        })
       }
       toast.error(message)
     }
@@ -377,6 +470,7 @@ export function useVideoGeneration() {
     prompt,
     referenceImages,
     t,
+    userId,
   ])
 
   const reuseRecord = useCallback((record: VideoGenerationRecord) => {
@@ -388,11 +482,13 @@ export function useVideoGeneration() {
 
   const clearHistory = useCallback(() => {
     setHistory([])
+    restoredTaskIdsRef.current.clear()
+    clearVideoGenerationHistory(userId)
     setErrorMsg('')
     if (!['submitting', 'queued', 'in_progress'].includes(status)) {
       setStatus('idle')
     }
-  }, [status])
+  }, [status, userId])
 
   return {
     prompt,
