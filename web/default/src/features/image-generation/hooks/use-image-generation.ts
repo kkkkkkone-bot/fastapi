@@ -197,35 +197,58 @@ export function useImageGeneration() {
     setStatus('loading')
     setErrorMsg('')
     try {
-      const response = await generateImages(
-        {
-          model,
-          group,
-          prompt: prompt.trim(),
-          n: count,
-          size: resolveImageSize(model, aspectRatio, resolution),
-          quality: resolveImageQuality(model, resolution, quality),
-          response_format: 'url',
-        },
-        referenceImages.map((image) => image.file)
+      const trimmedPrompt = prompt.trim()
+      const requestPayload = {
+        model,
+        group,
+        prompt: trimmedPrompt,
+        n: 1,
+        size: resolveImageSize(model, aspectRatio, resolution),
+        quality: resolveImageQuality(model, resolution, quality),
+        response_format: 'url' as const,
+      }
+      const referenceFiles = referenceImages.map((image) => image.file)
+      const responses = await Promise.allSettled(
+        Array.from({ length: count }, () =>
+          generateImages(requestPayload, referenceFiles)
+        )
       )
-      const images = (response.data ?? []).map((item) => ({
-        url: item.url,
-        b64_json: item.b64_json,
+      const successfulResponses = responses.flatMap((response) => {
+        if (response.status !== 'fulfilled') return []
+
+        const image = response.value.data?.find(
+          (item) => item.url || item.b64_json
+        )
+        return image ? [{ response: response.value, image }] : []
+      })
+      const images = successfulResponses.map(({ image }) => ({
+        url: image.url,
+        b64_json: image.b64_json,
       }))
       if (images.length === 0) {
+        const failedResponse = responses.find(
+          (response) => response.status === 'rejected'
+        )
+        if (failedResponse?.status === 'rejected') {
+          throw failedResponse.reason
+        }
         throw new Error(t('Image Gen Empty response'))
       }
 
+      const firstResponse = successfulResponses[0].response
       const nextResult = {
         images,
-        revisedPrompt: response.data?.[0]?.revised_prompt,
+        revisedPrompt: successfulResponses.find(
+          ({ image }) => image.revised_prompt
+        )?.image.revised_prompt,
       }
       const record: GenerationRecord = {
         ...nextResult,
         id: createRecordId(),
-        createdAt: response.created ? response.created * 1000 : Date.now(),
-        prompt: prompt.trim(),
+        createdAt: firstResponse.created
+          ? firstResponse.created * 1000
+          : Date.now(),
+        prompt: trimmedPrompt,
         model,
         aspectRatio,
         resolution,
@@ -237,6 +260,14 @@ export function useImageGeneration() {
         return nextHistory
       })
       setStatus('success')
+      if (successfulResponses.length < count) {
+        toast.warning(
+          t('Image Gen Partial generation succeeded', {
+            succeeded: successfulResponses.length,
+            requested: count,
+          })
+        )
+      }
     } catch (error: unknown) {
       const responseError = error as {
         message?: string

@@ -2315,6 +2315,7 @@
     "Image Gen Describe": "描述你想生成的图片",
     "Image Gen Revised prompt": "修订后的提示词",
     "Image Gen Generation failed": "生成失败",
+    "Image Gen Partial generation succeeded": "成功生成 {{succeeded}}/{{requested}} 张图片，部分请求失败。",
     "Image Gen Select model": "选择模型",
     "Image Gen Select group": "选择分组",
     "Image Gen Generating your images": "正在生成你的图片...",

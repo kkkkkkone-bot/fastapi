@@ -2315,6 +2315,7 @@
     "Image Gen Describe": "Describe the image you want to generate",
     "Image Gen Revised prompt": "Revised prompt",
     "Image Gen Generation failed": "Generation failed",
+    "Image Gen Partial generation succeeded": "Generated {{succeeded}} of {{requested}} images. Some requests failed.",
     "Image Gen Select model": "Select model",
     "Image Gen Select group": "Select group",
     "Image Gen Generating your images": "Generating your images...",

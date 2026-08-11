@@ -30,9 +30,9 @@ export function ImageGeneration() {
   const controller = useImageGeneration()
 
   return (
-    <div className='bg-muted/10 min-h-full overflow-y-auto'>
-      <div className='mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8'>
-        <header className='mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
+    <div className='bg-muted/10 min-h-full overflow-y-auto lg:h-full lg:min-h-0 lg:overflow-hidden'>
+      <div className='mx-auto flex min-h-full w-full max-w-[1440px] flex-col px-4 py-5 sm:px-6 sm:py-7 lg:h-full lg:min-h-0 lg:px-8'>
+        <header className='mb-6 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
           <div>
             <Badge variant='outline' className='bg-background/70 mb-3 gap-1.5'>
               <WandSparkles className='text-primary' />
@@ -50,8 +50,10 @@ export function ImageGeneration() {
           </div>
         </header>
 
-        <div className='grid items-start gap-6 lg:grid-cols-[minmax(0,620px)_minmax(0,1fr)] xl:gap-8'>
-          <GenerationWorkbench controller={controller} />
+        <div className='grid items-start gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,620px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch xl:gap-8'>
+          <div className='lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2'>
+            <GenerationWorkbench controller={controller} />
+          </div>
           <GenerationHistory
             history={controller.history}
             status={controller.status}
