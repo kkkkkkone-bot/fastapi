@@ -1200,6 +1200,61 @@ type ManageRequest struct {
 	Mode   string `json:"mode"`
 }
 
+type BatchManageRequest struct {
+	Ids    []int  `json:"ids"`
+	Action string `json:"action"`
+}
+
+// BatchManageUsers applies a safe administrative action to selected users.
+func BatchManageUsers(c *gin.Context) {
+	var req BatchManageRequest
+	if err := json.NewDecoder(c.Request.Body).Decode(&req); err != nil || len(req.Ids) == 0 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	if req.Action != "disable" && req.Action != "enable" && req.Action != "delete" {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	myRole := c.GetInt("role")
+	for _, id := range req.Ids {
+		user, err := model.GetUserById(id, false)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		if !canManageTargetRole(myRole, user.Role) {
+			common.ApiErrorI18n(c, i18n.MsgUserNoPermissionHigherLevel)
+			return
+		}
+		if req.Action == "delete" {
+			if user.Role == common.RoleRootUser {
+				common.ApiErrorI18n(c, i18n.MsgUserCannotDeleteRootUser)
+				return
+			}
+			if err := model.HardDeleteUserById(id); err != nil {
+				common.ApiError(c, err)
+				return
+			}
+		} else {
+			if user.Role == common.RoleRootUser && req.Action == "disable" {
+				common.ApiErrorI18n(c, i18n.MsgUserCannotDisableRootUser)
+				return
+			}
+			status := common.UserStatusEnabled
+			if req.Action == "disable" {
+				status = common.UserStatusDisabled
+			}
+			if err := model.DB.Model(&model.User{}).Where("id = ?", id).Update("status", status).Error; err != nil {
+				common.ApiError(c, err)
+				return
+			}
+		}
+		recordManageAuditFor(c, id, "user.batch_"+req.Action, map[string]interface{}{"id": id})
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
+}
+
 // ManageUser Only admin user can do this
 func ManageUser(c *gin.Context) {
 	var req ManageRequest
