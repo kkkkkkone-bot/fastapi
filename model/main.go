@@ -17,6 +17,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var commonGroupCol string
@@ -53,6 +54,15 @@ func initCol() {
 var DB *gorm.DB
 
 var LOG_DB *gorm.DB
+
+func parameterizedDebugLogger() gormlogger.Interface {
+	return gormlogger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), gormlogger.Config{
+		LogLevel:                  gormlogger.Info,
+		IgnoreRecordNotFoundError: true,
+		ParameterizedQueries:      true,
+		Colorful:                  false,
+	})
+}
 
 func createRootAccountIfNeed() error {
 	var user User
@@ -187,7 +197,7 @@ func InitDB() (err error) {
 		}
 		initCol()
 		if common.DebugEnabled {
-			db = db.Debug()
+			db = db.Session(&gorm.Session{Logger: parameterizedDebugLogger()})
 		}
 		DB = db
 		// MySQL charset/collation startup check: ensure Chinese-capable charset
@@ -231,7 +241,7 @@ func InitLogDB() (err error) {
 		common.SetLogDatabaseType(dbType)
 		initCol()
 		if common.DebugEnabled {
-			db = db.Debug()
+			db = db.Session(&gorm.Session{Logger: parameterizedDebugLogger()})
 		}
 		LOG_DB = db
 		// If log DB is MySQL, also ensure Chinese-capable charset

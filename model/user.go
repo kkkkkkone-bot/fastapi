@@ -58,6 +58,7 @@ type User struct {
 func (user *User) ToBaseUser() *UserBase {
 	cache := &UserBase{
 		Id:       user.Id,
+		Role:     user.Role,
 		Group:    user.Group,
 		Quota:    user.Quota,
 		Status:   user.Status,
@@ -466,15 +467,51 @@ func HardDeleteUserById(id int) error {
 	return user.HardDelete()
 }
 
-func inviteUser(inviterId int) (err error) {
-	user, err := GetUserById(inviterId, true)
-	if err != nil {
-		return err
+// grantFirstTopUpReferralReward grants the inviter reward exactly once, after
+// the invited user's first successful top-up has been persisted in tx.
+func grantFirstTopUpReferralReward(tx *gorm.DB, inviteeID int) (int, int, error) {
+	if !operation_setting.IsPaymentComplianceConfirmed() || common.QuotaForInviter <= 0 {
+		return 0, 0, nil
 	}
-	user.AffCount++
-	user.AffQuota += common.QuotaForInviter
-	user.AffHistoryQuota += common.QuotaForInviter
-	return DB.Save(user).Error
+
+	var invitee User
+	if err := lockForUpdate(tx).First(&invitee, inviteeID).Error; err != nil {
+		return 0, 0, err
+	}
+	if invitee.InviterId == 0 || invitee.InviterId == invitee.Id {
+		return 0, 0, nil
+	}
+
+	var successfulTopUpCount int64
+	if err := tx.Model(&TopUp{}).
+		Where("user_id = ? AND status = ?", invitee.Id, common.TopUpStatusSuccess).
+		Count(&successfulTopUpCount).Error; err != nil {
+		return 0, 0, err
+	}
+	if successfulTopUpCount != 1 {
+		return 0, 0, nil
+	}
+
+	reward := common.QuotaForInviter
+	result := tx.Model(&User{}).Where("id = ?", invitee.InviterId).Updates(map[string]interface{}{
+		"aff_count":   gorm.Expr("aff_count + ?", 1),
+		"aff_quota":   gorm.Expr("aff_quota + ?", reward),
+		"aff_history": gorm.Expr("aff_history + ?", reward),
+	})
+	if result.Error != nil {
+		return 0, 0, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return 0, 0, nil
+	}
+	return invitee.InviterId, reward, nil
+}
+
+func recordFirstTopUpReferralReward(inviterID int, quota int) {
+	if inviterID == 0 || quota <= 0 {
+		return
+	}
+	RecordLog(inviterID, LogTypeSystem, fmt.Sprintf("受邀用户首次充值成功，获得邀请奖励 %s", logger.LogQuota(quota)))
 }
 
 func (user *User) TransferAffQuotaToQuota(quota int) error {
@@ -516,6 +553,9 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 
 func (user *User) prepareForInsert(tx *gorm.DB) error {
 	user.Email = NormalizeEmail(user.Email)
+	if err := ValidateEmailDomain(user.Email); err != nil {
+		return err
+	}
 	if err := ensureEmailAvailableWithTx(tx, user.Email, 0); err != nil {
 		return err
 	}
@@ -532,6 +572,9 @@ func (user *User) prepareForInsert(tx *gorm.DB) error {
 // end up sharing one address. The email is normalized before check and store.
 func BindEmailToUser(user *User, email string) error {
 	email = NormalizeEmail(email)
+	if err := ValidateEmailDomain(email); err != nil {
+		return err
+	}
 	if err := DB.Transaction(func(tx *gorm.DB) error {
 		return withNormalizedEmailLock(tx, email, func(tx *gorm.DB) error {
 			if err := ensureEmailAvailableWithTx(tx, email, user.Id); err != nil {
@@ -591,7 +634,7 @@ func (user *User) Insert(inviterId int) error {
 	return nil
 }
 
-func (user *User) finishInsert(inviterId int) {
+func (user *User) finishInsert(_ int) {
 	// 用户创建成功后，根据角色初始化边栏配置
 	// 需要重新获取用户以确保有正确的ID和Role
 	var createdUser User
@@ -609,17 +652,6 @@ func (user *User) finishInsert(inviterId int) {
 
 	if common.QuotaForNewUser > 0 {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
-	}
-	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
-		if common.QuotaForInvitee > 0 {
-			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
-			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
-		}
-		if common.QuotaForInviter > 0 {
-			//_ = IncreaseUserQuota(inviterId, common.QuotaForInviter)
-			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
-		}
 	}
 }
 
@@ -650,7 +682,7 @@ func (user *User) InsertWithTx(tx *gorm.DB, inviterId int) error {
 
 // FinalizeOAuthUserCreation performs post-transaction tasks for OAuth user creation.
 // This should be called after the transaction commits successfully.
-func (user *User) FinalizeOAuthUserCreation(inviterId int) {
+func (user *User) FinalizeOAuthUserCreation(_ int) {
 	// 用户创建成功后，根据角色初始化边栏配置
 	var createdUser User
 	if err := DB.Where("id = ?", user.Id).First(&createdUser).Error; err == nil {
@@ -666,16 +698,6 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 
 	if common.QuotaForNewUser > 0 {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
-	}
-	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
-		if common.QuotaForInvitee > 0 {
-			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
-			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
-		}
-		if common.QuotaForInviter > 0 {
-			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
-		}
 	}
 }
 

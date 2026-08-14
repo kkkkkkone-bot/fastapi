@@ -25,6 +25,7 @@ type TopUp struct {
 }
 
 const (
+	PaymentMethodEpay         = "epay"
 	PaymentMethodStripe       = "stripe"
 	PaymentMethodCreem        = "creem"
 	PaymentMethodWaffo        = "waffo"
@@ -112,6 +113,7 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 	}
 
 	var quota float64
+	var rewardInviterID, rewardQuota int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -146,7 +148,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 			return err
 		}
 
-		return nil
+		var rewardErr error
+		rewardInviterID, rewardQuota, rewardErr = grantFirstTopUpReferralReward(tx, topUp.UserId)
+		return rewardErr
 	})
 
 	if err != nil {
@@ -155,6 +159,7 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 	}
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
+	recordFirstTopUpReferralReward(rewardInviterID, rewardQuota)
 
 	return nil
 }
@@ -331,6 +336,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	var quotaToAdd int
 	var payMoney float64
 	var paymentMethod string
+	var rewardInviterID, rewardQuota int
 
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		topUp := &TopUp{}
@@ -378,7 +384,9 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		userId = topUp.UserId
 		payMoney = topUp.Money
 		paymentMethod = topUp.PaymentMethod
-		return nil
+		var rewardErr error
+		rewardInviterID, rewardQuota, rewardErr = grantFirstTopUpReferralReward(tx, topUp.UserId)
+		return rewardErr
 	})
 
 	if err != nil {
@@ -387,6 +395,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 
 	// 事务外记录日志，避免阻塞
 	RecordTopupLog(userId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", logger.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, "admin")
+	recordFirstTopUpReferralReward(rewardInviterID, rewardQuota)
 	return nil
 }
 func RechargeCreem(referenceId string, customerEmail string, customerName string, callerIp string) (err error) {
@@ -395,6 +404,7 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 	}
 
 	var quota int64
+	var rewardInviterID, rewardQuota int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -431,8 +441,11 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			"quota": gorm.Expr("quota + ?", quota),
 		}
 
-		// 如果有客户邮箱，尝试更新用户邮箱（仅当用户邮箱为空时）
-		if customerEmail != "" {
+		// A payment-provider email must follow the same account email policy as
+		// registration and binding. A rejected or already-used address never
+		// blocks payment settlement; it is simply not attached to the account.
+		customerEmail = NormalizeEmail(customerEmail)
+		if customerEmail != "" && ValidateEmailDomain(customerEmail) == nil {
 			// 先检查用户当前邮箱是否为空
 			var user User
 			err = tx.Where("id = ?", topUp.UserId).First(&user).Error
@@ -441,7 +454,7 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			}
 
 			// 如果用户邮箱为空，则更新为支付时使用的邮箱
-			if user.Email == "" {
+			if user.Email == "" && ensureEmailAvailableWithTx(tx, customerEmail, user.Id) == nil {
 				updateFields["email"] = customerEmail
 			}
 		}
@@ -451,7 +464,8 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			return err
 		}
 
-		return nil
+		rewardInviterID, rewardQuota, err = grantFirstTopUpReferralReward(tx, topUp.UserId)
+		return err
 	})
 
 	if err != nil {
@@ -460,6 +474,7 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 	}
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用Creem充值成功，充值额度: %v，支付金额：%.2f", quota, topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodCreem)
+	recordFirstTopUpReferralReward(rewardInviterID, rewardQuota)
 
 	return nil
 }
@@ -470,6 +485,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 	}
 
 	var quotaToAdd int
+	var rewardInviterID, rewardQuota int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -512,7 +528,8 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return err
 		}
 
-		return nil
+		rewardInviterID, rewardQuota, err = grantFirstTopUpReferralReward(tx, topUp.UserId)
+		return err
 	})
 
 	if err != nil {
@@ -524,6 +541,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 		RecordTopupLog(topUp.UserId, fmt.Sprintf("Waffo充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
 	}
 
+	recordFirstTopUpReferralReward(rewardInviterID, rewardQuota)
 	return nil
 }
 
@@ -533,6 +551,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 	}
 
 	var quotaToAdd int
+	var rewardInviterID, rewardQuota int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -573,7 +592,8 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return err
 		}
 
-		return nil
+		rewardInviterID, rewardQuota, err = grantFirstTopUpReferralReward(tx, topUp.UserId)
+		return err
 	})
 
 	if err != nil {
@@ -585,5 +605,63 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 		RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("Waffo Pancake充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money))
 	}
 
+	recordFirstTopUpReferralReward(rewardInviterID, rewardQuota)
+	return nil
+}
+
+// RechargeEpay completes an Epay order atomically so duplicate callbacks
+// cannot mark an order successful without applying its quota and referral rule.
+func RechargeEpay(tradeNo string, actualPaymentMethod string, callerIP string) error {
+	if tradeNo == "" {
+		return errors.New("trade number is required")
+	}
+
+	refCol := "`trade_no`"
+	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
+		refCol = `"trade_no"`
+	}
+	var topUp TopUp
+	var quotaToAdd int
+	var rewardInviterID, rewardQuota int
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockForUpdate(tx).Where(refCol+" = ?", tradeNo).First(&topUp).Error; err != nil {
+			return ErrTopUpNotFound
+		}
+		if topUp.PaymentProvider != PaymentProviderEpay {
+			return ErrPaymentMethodMismatch
+		}
+		if topUp.Status == common.TopUpStatusSuccess {
+			return nil
+		}
+		if topUp.Status != common.TopUpStatusPending {
+			return ErrTopUpStatusInvalid
+		}
+
+		quotaToAdd = int(decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
+		if quotaToAdd <= 0 {
+			return errors.New("invalid top-up quota")
+		}
+		if actualPaymentMethod != "" {
+			topUp.PaymentMethod = actualPaymentMethod
+		}
+		topUp.CompleteTime = common.GetTimestamp()
+		topUp.Status = common.TopUpStatusSuccess
+		if err := tx.Save(&topUp).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
+			return err
+		}
+		var err error
+		rewardInviterID, rewardQuota, err = grantFirstTopUpReferralReward(tx, topUp.UserId)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if quotaToAdd > 0 {
+		RecordTopupLog(topUp.UserId, fmt.Sprintf("Epay top-up completed, quota: %s, payment amount: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIP, topUp.PaymentMethod, PaymentMethodEpay)
+	}
+	recordFirstTopUpReferralReward(rewardInviterID, rewardQuota)
 	return nil
 }

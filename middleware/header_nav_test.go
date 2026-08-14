@@ -3,14 +3,34 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
+
+func TestMain(m *testing.M) {
+	db, err := gorm.Open(sqlite.Open("file:middleware_test?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
+	if err := db.AutoMigrate(&model.User{}); err != nil {
+		panic(err)
+	}
+	model.DB = db
+	previousRedisEnabled := common.RedisEnabled
+	common.RedisEnabled = false
+	code := m.Run()
+	common.RedisEnabled = previousRedisEnabled
+	os.Exit(code)
+}
 
 func withHeaderNavModules(t *testing.T, raw string) {
 	t.Helper()
@@ -36,6 +56,16 @@ func withHeaderNavModules(t *testing.T, raw string) {
 
 func performHeaderNavRequest(t *testing.T, handler gin.HandlerFunc, authenticated bool) *httptest.ResponseRecorder {
 	t.Helper()
+	if authenticated {
+		user := model.User{
+			Id:       1,
+			Username: "tester",
+			Role:     common.RoleCommonUser,
+			Status:   common.UserStatusEnabled,
+			Group:    "default",
+		}
+		require.NoError(t, model.DB.Where("id = ?", user.Id).Assign(user).FirstOrCreate(&user).Error)
+	}
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

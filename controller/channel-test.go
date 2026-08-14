@@ -510,7 +510,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		Group:            info.UsingGroup,
 		Other:            other,
 	})
-	common.SysLog(fmt.Sprintf("testing channel #%d, response: \n%s", channel.Id, string(respBody)))
+	common.SysLog(fmt.Sprintf("testing channel #%d, response %s", channel.Id, payloadFingerprint(respBody)))
 	return testResult{
 		context:     c,
 		localErr:    nil,

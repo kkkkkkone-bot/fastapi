@@ -239,6 +239,13 @@ func SendEmailVerification(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if err := model.ValidateEmailDomain(email); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "邮箱域名不在管理员允许名单中",
+		})
+		return
+	}
 	parts := strings.Split(email, "@")
 	if len(parts) != 2 {
 		c.JSON(http.StatusOK, gin.H{
@@ -248,23 +255,6 @@ func SendEmailVerification(c *gin.Context) {
 		return
 	}
 	localPart := parts[0]
-	domainPart := parts[1]
-	if common.EmailDomainRestrictionEnabled {
-		allowed := false
-		for _, domain := range common.EmailDomainWhitelist {
-			if domainPart == domain {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "The administrator has enabled the email domain name whitelist, and your email address is not allowed due to special symbols or it's not in the whitelist.",
-			})
-			return
-		}
-	}
 	if common.EmailAliasRestrictionEnabled {
 		containsSpecialSymbols := strings.Contains(localPart, "+") || strings.Contains(localPart, ".")
 		if containsSpecialSymbols {

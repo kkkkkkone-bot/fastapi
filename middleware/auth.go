@@ -36,13 +36,22 @@ func validUserInfo(username string, role int) bool {
 
 func authHelper(c *gin.Context, minRole int) {
 	session := sessions.Default(c)
-	username := session.Get("username")
-	role := session.Get("role")
-	id := session.Get("id")
-	status := session.Get("status")
 	useAccessToken := false
-	if username == nil {
-		// Check access token
+	var user *model.UserBase
+	if sessionID, ok := session.Get("id").(int); ok && sessionID > 0 {
+		var err error
+		user, err = model.GetUserCache(sessionID)
+		if err != nil {
+			common.SysLog(fmt.Sprintf("authHelper GetUserCache error for user %d: %v", sessionID, err))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgDatabaseError),
+			})
+			c.Abort()
+			return
+		}
+	} else {
+		// Check access token when there is no valid browser session identity.
 		accessToken := c.Request.Header.Get("Authorization")
 		if accessToken == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -52,7 +61,7 @@ func authHelper(c *gin.Context, minRole int) {
 			c.Abort()
 			return
 		}
-		user, authErr := model.ValidateAccessToken(accessToken)
+		accessUser, authErr := model.ValidateAccessToken(accessToken)
 		if authErr != nil {
 			if errors.Is(authErr, model.ErrDatabase) {
 				common.SysLog("ValidateAccessToken database error: " + authErr.Error())
@@ -69,8 +78,8 @@ func authHelper(c *gin.Context, minRole int) {
 			c.Abort()
 			return
 		}
-		if user != nil && user.Username != "" {
-			if !validUserInfo(user.Username, user.Role) {
+		if accessUser != nil && accessUser.Username != "" {
+			if !validUserInfo(accessUser.Username, accessUser.Role) {
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
 					"message": common.TranslateMessage(c, i18n.MsgAuthUserInfoInvalid),
@@ -78,11 +87,16 @@ func authHelper(c *gin.Context, minRole int) {
 				c.Abort()
 				return
 			}
-			// Token is valid
-			username = user.Username
-			role = user.Role
-			id = user.Id
-			status = user.Status
+			user, authErr = model.GetUserCache(accessUser.Id)
+			if authErr != nil {
+				common.SysLog(fmt.Sprintf("authHelper GetUserCache error for access token user %d: %v", accessUser.Id, authErr))
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"message": common.TranslateMessage(c, i18n.MsgDatabaseError),
+				})
+				c.Abort()
+				return
+			}
 			useAccessToken = true
 		} else {
 			c.JSON(http.StatusOK, gin.H{
@@ -113,7 +127,7 @@ func authHelper(c *gin.Context, minRole int) {
 		return
 
 	}
-	if id != apiUserId {
+	if user.Id != apiUserId {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": common.TranslateMessage(c, i18n.MsgAuthUserIdMismatch),
@@ -121,7 +135,7 @@ func authHelper(c *gin.Context, minRole int) {
 		c.Abort()
 		return
 	}
-	if status.(int) == common.UserStatusDisabled {
+	if user.Status != common.UserStatusEnabled {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": common.TranslateMessage(c, i18n.MsgAuthUserBanned),
@@ -129,7 +143,7 @@ func authHelper(c *gin.Context, minRole int) {
 		c.Abort()
 		return
 	}
-	if role.(int) < minRole {
+	if user.Role < minRole {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": common.TranslateMessage(c, i18n.MsgAuthInsufficientPrivilege),
@@ -137,7 +151,7 @@ func authHelper(c *gin.Context, minRole int) {
 		c.Abort()
 		return
 	}
-	if !validUserInfo(username.(string), role.(int)) {
+	if !validUserInfo(user.Username, user.Role) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": common.TranslateMessage(c, i18n.MsgAuthUserInfoInvalid),
@@ -147,11 +161,11 @@ func authHelper(c *gin.Context, minRole int) {
 	}
 	// 防止不同newapi版本冲突，导致数据不通用
 	c.Header("Auth-Version", "864b7076dbcd0a3c01b5520316720ebf")
-	c.Set("username", username)
-	c.Set("role", role)
-	c.Set("id", id)
-	c.Set("group", session.Get("group"))
-	c.Set("user_group", session.Get("group"))
+	c.Set("username", user.Username)
+	c.Set("role", user.Role)
+	c.Set("id", user.Id)
+	c.Set("group", user.Group)
+	c.Set("user_group", user.Group)
 	c.Set("use_access_token", useAccessToken)
 
 	// 管理/root 写操作审计兜底：内聚在鉴权链路里，保证任何经过 AdminAuth/RootAuth
@@ -222,12 +236,31 @@ func TokenOrUserAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		// Try session auth first (dashboard users)
 		session := sessions.Default(c)
-		if id := session.Get("id"); id != nil {
-			if status, ok := session.Get("status").(int); ok && status == common.UserStatusEnabled {
-				c.Set("id", id)
-				c.Next()
+		if userID, ok := session.Get("id").(int); ok && userID > 0 {
+			user, err := model.GetUserCache(userID)
+			if err != nil {
+				common.SysLog(fmt.Sprintf("TokenOrUserAuth GetUserCache error for user %d: %v", userID, err))
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"message": common.TranslateMessage(c, i18n.MsgDatabaseError),
+				})
+				c.Abort()
 				return
 			}
+			if user.Status != common.UserStatusEnabled {
+				c.JSON(http.StatusForbidden, gin.H{
+					"success": false,
+					"message": common.TranslateMessage(c, i18n.MsgAuthUserBanned),
+				})
+				c.Abort()
+				return
+			}
+			c.Set("id", user.Id)
+			c.Set("role", user.Role)
+			c.Set("username", user.Username)
+			c.Set("group", user.Group)
+			c.Next()
+			return
 		}
 		// Fall back to token auth (API clients)
 		TokenAuth()(c)

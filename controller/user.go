@@ -205,6 +205,10 @@ func Register(c *gin.Context) {
 	}
 	user.Username = strings.TrimSpace(user.Username)
 	user.Email = model.NormalizeEmail(user.Email)
+	if err := model.ValidateEmailDomain(user.Email); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "邮箱域名不在管理员允许名单中"})
+		return
+	}
 	if user.Username == "" {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -1250,6 +1254,12 @@ func BatchManageUsers(c *gin.Context) {
 				return
 			}
 		}
+		if err := model.InvalidateUserCache(id); err != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", id, err.Error()))
+		}
+		if err := model.InvalidateUserTokensCache(id); err != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate tokens cache for user %d: %s", id, err.Error()))
+		}
 		recordManageAuditFor(c, id, "user.batch_"+req.Action, map[string]interface{}{"id": id})
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
@@ -1399,7 +1409,7 @@ func ManageUser(c *gin.Context) {
 	// 避免在 Redis TTL 过期前仍使用旧状态（尤其是禁用后仍可发起请求的问题）。
 	// InvalidateUserCache 会让下一次 GetUserCache 从数据库重新加载，
 	// InvalidateUserTokensCache 则确保令牌侧的缓存也同步刷新。
-	if req.Action == "disable" || req.Action == "promote" || req.Action == "demote" {
+	if req.Action == "disable" || req.Action == "enable" || req.Action == "promote" || req.Action == "demote" {
 		if err := model.InvalidateUserCache(user.Id); err != nil {
 			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", user.Id, err.Error()))
 		}
@@ -1437,6 +1447,10 @@ func EmailBind(c *gin.Context) {
 	}
 	email := req.Email
 	email = model.NormalizeEmail(email)
+	if err := model.ValidateEmailDomain(email); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "邮箱域名不在管理员允许名单中"})
+		return
+	}
 	code := req.Code
 	if !common.VerifyCodeWithKey(email, code, common.EmailVerificationPurpose) {
 		common.ApiErrorI18n(c, i18n.MsgUserVerificationCodeError)

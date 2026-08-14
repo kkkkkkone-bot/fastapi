@@ -1,8 +1,10 @@
 package model
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -18,6 +20,39 @@ import (
 type Option struct {
 	Key   string `json:"key" gorm:"primaryKey"`
 	Value string `json:"value"`
+}
+
+var invalidOptionLoadValues sync.Map
+
+var jsonOptionKeys = map[string]struct{}{
+	"AudioCompletionRatio":       {},
+	"AudioRatio":                 {},
+	"AutoGroups":                 {},
+	"CacheRatio":                 {},
+	"Chats":                      {},
+	"CompletionRatio":            {},
+	"CreateCacheRatio":           {},
+	"GroupGroupRatio":            {},
+	"GroupRatio":                 {},
+	"ImageRatio":                 {},
+	"ModelPrice":                 {},
+	"ModelRatio":                 {},
+	"ModelRequestRateLimitGroup": {},
+	"PayMethods":                 {},
+	"TopupGroupRatio":            {},
+	"UserUsableGroups":           {},
+	"WaffoPayMethods":            {},
+}
+
+func validateOptionValue(key string, value string) error {
+	if _, requiresJSON := jsonOptionKeys[key]; !requiresJSON {
+		return nil
+	}
+	var parsed interface{}
+	if err := common.Unmarshal([]byte(value), &parsed); err != nil {
+		return fmt.Errorf("option %s must contain valid JSON: %w", key, err)
+	}
+	return nil
 }
 
 func AllOption() ([]*Option, error) {
@@ -193,8 +228,13 @@ func loadOptionsFromDatabase() {
 	for _, option := range options {
 		err := updateOptionMap(option.Key, option.Value)
 		if err != nil {
-			common.SysLog("failed to update option map: " + err.Error())
+			if previous, loaded := invalidOptionLoadValues.Load(option.Key); !loaded || previous != option.Value {
+				invalidOptionLoadValues.Store(option.Key, option.Value)
+				common.SysLog(fmt.Sprintf("failed to load option key=%s: %s", option.Key, err.Error()))
+			}
+			continue
 		}
+		invalidOptionLoadValues.Delete(option.Key)
 	}
 }
 
@@ -207,17 +247,24 @@ func SyncOptions(frequency int) {
 }
 
 func UpdateOption(key string, value string) error {
+	if err := validateOptionValue(key, value); err != nil {
+		return err
+	}
 	// Save to database first
 	option := Option{
 		Key: key,
 	}
 	// https://gorm.io/docs/update.html#Save-All-Fields
-	DB.FirstOrCreate(&option, Option{Key: key})
+	if err := DB.FirstOrCreate(&option, Option{Key: key}).Error; err != nil {
+		return err
+	}
 	option.Value = value
 	// Save is a combination function.
 	// If save value does not contain primary key, it will execute Create,
 	// otherwise it will execute Update (with all fields).
-	DB.Save(&option)
+	if err := DB.Save(&option).Error; err != nil {
+		return err
+	}
 	// Update OptionMap
 	return updateOptionMap(key, value)
 }
@@ -230,6 +277,11 @@ func UpdateOption(key string, value string) error {
 func UpdateOptionsBulk(values map[string]string) error {
 	if len(values) == 0 {
 		return nil
+	}
+	for key, value := range values {
+		if err := validateOptionValue(key, value); err != nil {
+			return err
+		}
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		for k, v := range values {
@@ -256,6 +308,9 @@ func UpdateOptionsBulk(values map[string]string) error {
 }
 
 func updateOptionMap(key string, value string) (err error) {
+	if err := validateOptionValue(key, value); err != nil {
+		return err
+	}
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
 	common.OptionMap[key] = value
