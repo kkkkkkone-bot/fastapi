@@ -89,6 +89,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	defer func() {
 		if newAPIError != nil {
 			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(newAPIError.Error())))
+			// A streaming response can fail after bytes (including an SSE keepalive)
+			// have already been sent. At that point the HTTP status and protocol are
+			// committed, so appending a JSON error would corrupt the SSE response.
+			// The error is still handled below for refunding and error logging.
+			if c.Writer != nil && c.Writer.Written() {
+				logger.LogWarn(c, "relay response already started; skip writing error payload")
+				return
+			}
 			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
@@ -324,6 +332,16 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 
 func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
 	if openaiErr == nil {
+		return false
+	}
+	// Retrying after any downstream bytes have been written would splice a
+	// second model response into an already-started SSE/HTTP response. It can
+	// also duplicate a tool call. Only retry while the client has not observed
+	// a response and is still connected.
+	if c == nil || c.Request == nil || c.Request.Context().Err() != nil {
+		return false
+	}
+	if c.Writer != nil && c.Writer.Written() {
 		return false
 	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {

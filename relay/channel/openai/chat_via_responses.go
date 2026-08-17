@@ -141,12 +141,13 @@ func OaiResponsesToChatBufferedStreamHandler(c *gin.Context, info *relaycommon.R
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	if finalResponse == nil {
-		finalResponse = &dto.OpenAIResponsesResponse{
-			ID:        helper.GetResponseID(c),
-			CreatedAt: int(time.Now().Unix()),
-			Model:     info.UpstreamModelName,
-			Status:    []byte(`"completed"`),
-		}
+		// A missing terminal Responses event means the upstream stream was cut
+		// short. Do not fabricate a completed chat response and bill the prompt.
+		return nil, types.NewOpenAIError(
+			fmt.Errorf("responses stream ended without a terminal response event"),
+			types.ErrorCodeBadResponse,
+			http.StatusBadGateway,
+		)
 	}
 	accumulator.SupplementResponseOutput(finalResponse)
 
@@ -203,6 +204,7 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	streamErr := (*types.NewAPIError)(nil)
+	terminalResponse := false
 
 	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo == nil {
 		info.ClaudeConvertInfo = &relaycommon.ClaudeConvertInfo{LastMessagesType: relaycommon.LastMessageTypeNone}
@@ -279,6 +281,10 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 			sr.Error(err)
 			return
 		}
+		switch streamResp.Type {
+		case "response.completed", "response.done", "response.incomplete":
+			terminalResponse = true
+		}
 
 		if streamResp.Type == "response.error" || streamResp.Type == "response.failed" {
 			if streamResp.Response != nil {
@@ -309,6 +315,10 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 
 	if streamErr != nil {
 		return nil, streamErr
+	}
+	if completionErr := streamCompletionError(info, terminalResponse, terminalResponse); completionErr != nil {
+		logger.LogError(c, fmt.Sprintf("upstream responses-to-chat stream rejected: %s (%s)", completionErr.Error(), info.StreamStatus.Summary()))
+		return nil, completionErr
 	}
 
 	usage := state.Usage()

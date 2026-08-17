@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/relay/channel/openrouter"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/relayconvert"
@@ -101,6 +102,102 @@ func sendStreamData(c *gin.Context, info *relaycommon.RelayInfo, data string, fo
 	return helper.ObjectData(c, lastStreamResponse)
 }
 
+// streamCompletionError turns an incomplete or malformed upstream SSE stream
+// into a relay error. Previously StreamScannerHandler recorded its status only
+// for logs, and callers would still synthesize a final [DONE] and settle the
+// estimated prompt tokens. That made an upstream reset look like a successful
+// empty completion to clients.
+//
+// EOF is accepted only when the provider has already emitted a terminal chat
+// chunk (finish_reason). A normal [DONE] is also accepted, but it must
+// follow at least one usable response chunk; a bare [DONE] is not a response.
+func streamCompletionError(info *relaycommon.RelayInfo, hasUsableResponse bool, hasTerminalResponse bool) *types.NewAPIError {
+	if info == nil || info.StreamStatus == nil {
+		return types.NewOpenAIError(
+			fmt.Errorf("upstream stream ended without completion status"),
+			types.ErrorCodeBadResponse,
+			http.StatusBadGateway,
+		)
+	}
+
+	status := info.StreamStatus
+	if status.HasErrors() {
+		return types.NewOpenAIError(
+			fmt.Errorf("upstream stream failed before completion"),
+			types.ErrorCodeBadResponse,
+			http.StatusBadGateway,
+		)
+	}
+
+	switch status.EndReason {
+	case relaycommon.StreamEndReasonDone:
+		if hasUsableResponse {
+			return nil
+		}
+		return types.NewOpenAIError(
+			fmt.Errorf("upstream stream completed without a usable response"),
+			types.ErrorCodeEmptyResponse,
+			http.StatusBadGateway,
+		)
+	case relaycommon.StreamEndReasonEOF:
+		if hasTerminalResponse {
+			return nil
+		}
+		return types.NewOpenAIError(
+			fmt.Errorf("upstream stream ended before completion"),
+			types.ErrorCodeBadResponse,
+			http.StatusBadGateway,
+		)
+	default:
+		return types.NewOpenAIError(
+			fmt.Errorf("upstream stream terminated unexpectedly"),
+			types.ErrorCodeBadResponse,
+			http.StatusBadGateway,
+		)
+	}
+}
+
+func observeChatStreamState(relayMode int, data string, hasUsableResponse *bool, hasTerminalResponse *bool) {
+	switch relayMode {
+	case relayconstant.RelayModeChatCompletions:
+		var streamResponse dto.ChatCompletionsStreamResponse
+		if err := common.UnmarshalJsonStr(data, &streamResponse); err != nil {
+			return
+		}
+		if streamResponse.IsFinished() {
+			*hasUsableResponse = true
+			*hasTerminalResponse = true
+		}
+		for _, choice := range streamResponse.Choices {
+			if choice.Delta.GetContentString() != "" ||
+				choice.Delta.GetReasoningContent() != "" ||
+				len(choice.Delta.ToolCalls) > 0 {
+				*hasUsableResponse = true
+			}
+		}
+	case relayconstant.RelayModeCompletions:
+		var streamResponse dto.CompletionsStreamResponse
+		if err := common.UnmarshalJsonStr(data, &streamResponse); err != nil {
+			return
+		}
+		for _, choice := range streamResponse.Choices {
+			if choice.Text != "" {
+				*hasUsableResponse = true
+			}
+			if choice.FinishReason != "" {
+				*hasUsableResponse = true
+				*hasTerminalResponse = true
+			}
+		}
+	default:
+		// OaiStreamHandler is normally used for chat/completions. Keep other
+		// compatible modes backward-compatible: receiving a non-empty data
+		// frame is enough for a normal [DONE] to complete them.
+		*hasUsableResponse = true
+		*hasTerminalResponse = true
+	}
+}
+
 func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	if resp == nil || resp.Body == nil {
 		logger.LogError(c, "invalid response or response body")
@@ -119,6 +216,8 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	var usage = &dto.Usage{}
 	var lastStreamData string
 	var secondLastStreamData string // 存储倒数第二个stream data，用于音频模型
+	var hasUsableResponse bool
+	var hasTerminalResponse bool
 
 	// 检查是否为音频模型
 	isAudioModel := strings.Contains(strings.ToLower(model), "audio")
@@ -131,6 +230,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			}
 		}
 		if len(data) > 0 {
+			observeChatStreamState(info.RelayMode, data, &hasUsableResponse, &hasTerminalResponse)
 			// 对音频模型，保存倒数第二个stream data
 			if isAudioModel && lastStreamData != "" {
 				secondLastStreamData = lastStreamData
@@ -143,6 +243,11 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			}
 		}
 	})
+
+	if streamErr := streamCompletionError(info, hasUsableResponse, hasTerminalResponse); streamErr != nil {
+		logger.LogError(c, fmt.Sprintf("upstream stream rejected: %s (%s)", streamErr.Error(), info.StreamStatus.Summary()))
+		return nil, streamErr
+	}
 
 	// 对音频模型，从倒数第二个stream data中提取usage信息
 	if isAudioModel && secondLastStreamData != "" {

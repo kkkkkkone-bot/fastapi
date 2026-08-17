@@ -116,6 +116,21 @@ func TestOaiResponsesToChatBufferedStreamHandlerReturnsJSONFromSSE(t *testing.T)
 	require.Contains(t, got, `"finish_reason":"tool_calls"`)
 }
 
+func TestOaiResponsesToChatBufferedStreamHandlerRejectsMissingTerminalEvent(t *testing.T) {
+	body := strings.Join([]string{
+		`data: {"type":"response.output_text.delta","delta":"partial"}`,
+		`data: [DONE]`,
+	}, "\n")
+	c, recorder, resp, info := newResponsesChatTestContext(t, body, false)
+
+	usage, err := OaiResponsesToChatBufferedStreamHandler(c, info, resp)
+
+	require.Nil(t, usage)
+	require.NotNil(t, err)
+	require.Equal(t, types.ErrorCodeBadResponse, err.GetErrorCode())
+	require.Empty(t, recorder.Body.String())
+}
+
 func TestOaiChatToResponsesStreamHandlerConvertsSSEOrderAndUsage(t *testing.T) {
 	oldMode := gin.Mode()
 	gin.SetMode(gin.TestMode)
