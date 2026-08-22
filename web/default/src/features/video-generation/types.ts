@@ -41,6 +41,10 @@ export interface VideoGenerationRequest {
   size: string
   image?: string
   images?: string[]
+  metadata?: {
+    quality?: string
+    model_version?: string
+  }
 }
 
 export type VideoTaskStatus = 'queued' | 'in_progress' | 'completed' | 'failed'

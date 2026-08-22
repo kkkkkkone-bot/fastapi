@@ -293,6 +293,7 @@ const SENSITIVE_FORM_FIELDS = [
   'allow_inference_geo',
   'allow_speed',
   'claude_beta_query',
+  'vidu_auth_type',
   'disable_task_polling_sleep',
   'upstream_model_update_check_enabled',
   'upstream_model_update_auto_sync_enabled',
@@ -2619,6 +2620,49 @@ export function ChannelMutateDrawer({
                                   )}
                                 />
                               </>
+                            )}
+
+                            {/* Vidu (type 52) */}
+                            {currentType === 52 && (
+                              <FormField
+                                control={form.control}
+                                name='vidu_auth_type'
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Vidu 鉴权方式</FormLabel>
+                                    <Select
+                                      items={[
+                                        { value: 'token', label: 'Token（原生 Vidu）' },
+                                        { value: 'bearer', label: 'Bearer（OpenLux 网关）' },
+                                      ]}
+                                      onValueChange={field.onChange}
+                                      value={field.value}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent
+                                        alignItemWithTrigger={false}
+                                      >
+                                        <SelectGroup>
+                                          <SelectItem value='token'>
+                                            Token（原生 Vidu）
+                                          </SelectItem>
+                                          <SelectItem value='bearer'>
+                                            Bearer（OpenLux 网关）
+                                          </SelectItem>
+                                        </SelectGroup>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                      原生 Vidu 用 Token；经 OpenLux 等网关用 Bearer
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
                             )}
 
                             {/* VolcEngine (type 45) */}

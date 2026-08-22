@@ -77,6 +77,8 @@ func ChannelType2APIType(channelType int) (int, bool) {
 		apiType = constant.APITypeCodex
 	case constant.ChannelTypeAdvancedCustom:
 		apiType = constant.APITypeAdvancedCustom
+	case constant.ChannelTypePixverse:
+		apiType = constant.APITypePixverse
 	}
 	if apiType == -1 {
 		return constant.APITypeOpenAI, false

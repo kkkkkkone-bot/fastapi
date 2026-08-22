@@ -76,11 +76,25 @@ type TaskAdaptor struct {
 	taskcommon.BaseBilling
 	ChannelType int
 	baseURL     string
+	authType    string
 }
 
 func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 	a.ChannelType = info.ChannelType
 	a.baseURL = info.ChannelBaseUrl
+	a.authType = info.ChannelOtherSettings.ViduAuthType
+	if a.authType == "" {
+		a.authType = "token"
+	}
+}
+
+// authHeaderValue 返回鉴权头：原生 Vidu 用 "Token"，经 OpenLux 等网关用 "Bearer"。
+// 由渠道设置 vidu_auth_type 控制，默认 token，保证原生 Vidu 接入不受影响。
+func (a *TaskAdaptor) authHeaderValue(key string) string {
+	if strings.EqualFold(a.authType, "bearer") {
+		return "Bearer " + key
+	}
+	return "Token " + key
 }
 
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
@@ -153,7 +167,7 @@ func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, erro
 func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info *relaycommon.RelayInfo) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Token "+info.ApiKey)
+	req.Header.Set("Authorization", a.authHeaderValue(info.ApiKey))
 	return nil
 }
 
@@ -203,7 +217,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Token "+key)
+	req.Header.Set("Authorization", a.authHeaderValue(key))
 
 	client, err := service.GetHttpClientWithProxy(proxy)
 	if err != nil {

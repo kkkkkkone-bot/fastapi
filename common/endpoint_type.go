@@ -32,7 +32,8 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 		constant.ChannelTypeKling,
 		constant.ChannelTypeJimeng,
 		constant.ChannelTypeVidu,
-		constant.ChannelTypeDoubaoVideo:
+		constant.ChannelTypeDoubaoVideo,
+		constant.ChannelTypePixverse:
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAIVideo}
 	default:
 		if IsOpenAIResponseOnlyModel(modelName) {

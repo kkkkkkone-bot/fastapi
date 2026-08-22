@@ -42,7 +42,20 @@ export function getVideoDurations(model: string): number[] {
   if (normalizedModel.startsWith('sora-2')) return [15, 4, 8, 12]
   if (normalizedModel.includes('veo-')) return [15, 4, 6, 8]
   if (normalizedModel.includes('hailuo')) return [15, 6, 10]
+  if (normalizedModel.includes('pixverse')) return [10, 5]
   return [15, 5, 10]
+}
+
+export function getVideoQualities(model: string): string[] {
+  const normalizedModel = model.toLowerCase()
+  if (normalizedModel.includes('pixverse')) return ['360p', '540p', '720p', '1080p']
+  return ['720p']
+}
+
+export function getVideoModelVersions(model: string): string[] {
+  const normalizedModel = model.toLowerCase()
+  if (normalizedModel.includes('pixverse')) return ['c1', 'v6', 'v6.5']
+  return []
 }
 
 export function resolveVideoSize(aspectRatio: string): string {

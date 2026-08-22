@@ -36,6 +36,7 @@ var (
 		"veo-",
 		"kling-",
 		"vidu",
+		"pixverse",
 		"hailuo",
 		"minimax-hailuo",
 		"t2v-",

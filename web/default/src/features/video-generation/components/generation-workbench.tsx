@@ -111,6 +111,52 @@ export function GenerationWorkbench({ controller }: GenerationWorkbenchProps) {
           )}
         </section>
 
+        {controller.availableModelVersions.length > 0 && (
+          <section className='space-y-2.5'>
+            <Label>{t('Video Gen Model version')}</Label>
+            <Select
+              value={controller.modelVersion}
+              onValueChange={(value) => {
+                if (value) controller.setModelVersion(value)
+              }}
+            >
+              <SelectTrigger className='h-11 w-full rounded-xl'>
+                <SelectValue placeholder={t('Video Gen Select model version')} />
+              </SelectTrigger>
+              <SelectContent>
+                {controller.availableModelVersions.map((version) => (
+                  <SelectItem key={version} value={version}>
+                    {version}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </section>
+        )}
+
+        {controller.availableQualities.length > 0 && (
+          <section className='space-y-2.5'>
+            <Label>{t('Video Gen Quality')}</Label>
+            <Select
+              value={controller.quality}
+              onValueChange={(value) => {
+                if (value) controller.setQuality(value)
+              }}
+            >
+              <SelectTrigger className='h-11 w-full rounded-xl'>
+                <SelectValue placeholder={t('Video Gen Select quality')} />
+              </SelectTrigger>
+              <SelectContent>
+                {controller.availableQualities.map((q) => (
+                  <SelectItem key={q} value={q}>
+                    {q}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </section>
+        )}
+
         <section className='space-y-2.5'>
           <Label>{t('Video Gen Aspect ratio')}</Label>
           <div className='grid grid-cols-3 gap-2'>

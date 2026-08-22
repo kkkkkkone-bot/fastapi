@@ -33,6 +33,8 @@ import {
 import {
   getVideoAspectRatios,
   getVideoDurations,
+  getVideoModelVersions,
+  getVideoQualities,
   MAX_VIDEO_REFERENCE_IMAGES,
   MAX_VIDEO_REFERENCE_IMAGE_SIZE,
   resolveVideoSize,
@@ -150,6 +152,8 @@ export function useVideoGeneration() {
   const [model, setModel] = useState('')
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [duration, setDuration] = useState(15)
+  const [quality, setQuality] = useState('720p')
+  const [modelVersion, setModelVersion] = useState('c1')
   const [referenceImages, setReferenceImages] = useState<VideoReferenceImage[]>(
     []
   )
@@ -178,6 +182,11 @@ export function useVideoGeneration() {
     [model]
   )
   const availableDurations = useMemo(() => getVideoDurations(model), [model])
+  const availableQualities = useMemo(() => getVideoQualities(model), [model])
+  const availableModelVersions = useMemo(
+    () => getVideoModelVersions(model),
+    [model]
+  )
 
   useEffect(() => {
     if (!groupsData?.length) return
@@ -207,7 +216,28 @@ export function useVideoGeneration() {
     if (!availableDurations.includes(duration)) {
       setDuration(availableDurations[0])
     }
-  }, [aspectRatio, availableAspectRatios, availableDurations, duration])
+    if (
+      availableQualities.length > 0 &&
+      !availableQualities.includes(quality)
+    ) {
+      setQuality(availableQualities[0])
+    }
+    if (
+      availableModelVersions.length > 0 &&
+      !availableModelVersions.includes(modelVersion)
+    ) {
+      setModelVersion(availableModelVersions[0])
+    }
+  }, [
+    aspectRatio,
+    availableAspectRatios,
+    availableDurations,
+    availableQualities,
+    availableModelVersions,
+    duration,
+    quality,
+    modelVersion,
+  ])
 
   useEffect(() => {
     referencesRef.current = referenceImages
@@ -397,6 +427,15 @@ export function useVideoGeneration() {
           size: resolveVideoSize(aspectRatio),
           image: imageDataUrls[0],
           images: imageDataUrls.length ? imageDataUrls : undefined,
+          metadata:
+            availableQualities.length > 0 || availableModelVersions.length > 0
+              ? {
+                  ...(availableQualities.length > 0 && { quality }),
+                  ...(availableModelVersions.length > 0 && {
+                    model_version: modelVersion,
+                  }),
+                }
+              : undefined,
         },
         referenceImages.map((image) => image.file),
         abortController.signal
@@ -478,6 +517,8 @@ export function useVideoGeneration() {
     setModel(record.model)
     setAspectRatio(record.aspectRatio)
     setDuration(record.duration)
+    setQuality('720p')
+    setModelVersion('c1')
   }, [])
 
   const clearHistory = useCallback(() => {
@@ -499,6 +540,10 @@ export function useVideoGeneration() {
     setAspectRatio,
     duration,
     setDuration,
+    quality,
+    setQuality,
+    modelVersion,
+    setModelVersion,
     referenceImages,
     addReferenceImages,
     removeReferenceImage,
@@ -510,6 +555,8 @@ export function useVideoGeneration() {
     isLoadingModels,
     availableAspectRatios,
     availableDurations,
+    availableQualities,
+    availableModelVersions,
     handleGenerate,
     reuseRecord,
     clearHistory,
