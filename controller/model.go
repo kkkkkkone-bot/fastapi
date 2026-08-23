@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ func init() {
 			continue
 		}
 		adaptor := relay.GetAdaptor(i)
+		if adaptor == nil {
+			continue
+		}
 		channelName := adaptor.GetChannelName()
 		modelNames := adaptor.GetModelList()
 		for _, modelName := range modelNames {
@@ -102,6 +106,15 @@ func init() {
 			ChannelType: i,
 		}}
 		adaptor := relay.GetAdaptor(apiType)
+		if adaptor == nil {
+			taskAdaptor := relay.GetTaskAdaptor(constant.TaskPlatform(strconv.Itoa(i)))
+			if taskAdaptor == nil {
+				continue
+			}
+			taskAdaptor.Init(meta)
+			channelId2Models[i] = taskAdaptor.GetModelList()
+			continue
+		}
 		adaptor.Init(meta)
 		channelId2Models[i] = adaptor.GetModelList()
 	}
