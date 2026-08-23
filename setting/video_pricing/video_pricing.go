@@ -96,6 +96,10 @@ func GetPricing(model string) *Pricing {
 		versions := []string{"c1", "v6", "v5.6", "v5.5", "v5", "v4.5", "v4", "v3.5"}
 		qualities := []string{"360p", "540p", "720p", "1080p"}
 		for _, version := range versions {
+			audioOptions := []bool{false}
+			if version == "c1" || version == "v6" || version == "v5.6" || version == "v5.5" {
+				audioOptions = []bool{false, true}
+			}
 			modes := []string{""}
 			if version == "v4.5" || version == "v4" || version == "v3.5" {
 				modes = []string{"normal", "fast"}
@@ -103,19 +107,26 @@ func GetPricing(model string) *Pricing {
 			for _, quality := range qualities {
 				for _, duration := range []int{5, 8, 10} {
 					for _, mode := range modes {
-						options := Options{
-							ModelVersion: version,
-							Resolution:   quality,
-							Duration:     duration,
-							Mode:         mode,
+						for _, audio := range audioOptions {
+							audioValue := "off"
+							if audio {
+								audioValue = "on"
+							}
+							options := Options{
+								ModelVersion: version,
+								Resolution:   quality,
+								Duration:     duration,
+								Mode:         mode,
+								Audio:        audio,
+							}
+							rows = appendPriceRow(rows, model, options, Row{
+								ModelVersion: version,
+								Resolution:   quality,
+								Duration:     duration,
+								Mode:         mode,
+								Audio:        audioValue,
+							})
 						}
-						rows = appendPriceRow(rows, model, options, Row{
-							ModelVersion: version,
-							Resolution:   quality,
-							Duration:     duration,
-							Mode:         mode,
-							Audio:        "off",
-						})
 					}
 				}
 			}
@@ -219,7 +230,7 @@ func EstimateReferencePrice(model string, options Options) (float64, error) {
 		}
 		return price, nil
 	case PixVerseVideoModel:
-		return estimatePixVerseReferencePrice(version, resolution, options.Duration, mode)
+		return estimatePixVerseReferencePrice(version, resolution, options.Duration, mode, options.Audio)
 	case KlingVideoModel:
 		if version == "" {
 			version = "kling-v2-6"
@@ -252,7 +263,7 @@ func EstimateReferencePrice(model string, options Options) (float64, error) {
 	}
 }
 
-func estimatePixVerseReferencePrice(version, quality string, duration int, mode string) (float64, error) {
+func estimatePixVerseReferencePrice(version, quality string, duration int, mode string, audio bool) (float64, error) {
 	if quality != "360p" && quality != "540p" && quality != "720p" && quality != "1080p" {
 		return 0, fmt.Errorf("unsupported pixverse quality: %s", quality)
 	}
@@ -261,11 +272,17 @@ func estimatePixVerseReferencePrice(version, quality string, duration int, mode 
 		if duration != 5 && duration != 8 && duration != 10 {
 			return 0, fmt.Errorf("pixverse %s duration must be 5, 8, or 10 seconds", version)
 		}
-		rates := map[string]float64{
-			"c1:360p": 0.0181, "c1:540p": 0.0242, "c1:720p": 0.0302, "c1:1080p": 0.0574,
-			"v6:360p": 0.0151, "v6:540p": 0.0211, "v6:720p": 0.0272, "v6:1080p": 0.0544,
+		audioValue := "off"
+		if audio {
+			audioValue = "on"
 		}
-		return float64(duration) * rates[version+":"+quality], nil
+		rates := map[string]float64{
+			"c1:360p:off": 0.0181, "c1:540p:off": 0.0242, "c1:720p:off": 0.0302, "c1:1080p:off": 0.0574,
+			"c1:360p:on": 0.0242, "c1:540p:on": 0.0302, "c1:720p:on": 0.0393, "c1:1080p:on": 0.0725,
+			"v6:360p:off": 0.0151, "v6:540p:off": 0.0211, "v6:720p:off": 0.0272, "v6:1080p:off": 0.0544,
+			"v6:360p:on": 0.0211, "v6:540p:on": 0.0272, "v6:720p:on": 0.0362, "v6:1080p:on": 0.0695,
+		}
+		return float64(duration) * rates[version+":"+quality+":"+audioValue], nil
 	}
 
 	baseCredits := map[string]int{
@@ -278,20 +295,35 @@ func estimatePixVerseReferencePrice(version, quality string, duration int, mode 
 		if duration != 5 && duration != 8 && duration != 10 {
 			return 0, fmt.Errorf("pixverse v5.6 duration must be 5, 8, or 10 seconds")
 		}
-		prices := map[string]map[int]float64{
-			"360p":  {5: 0.1057, 8: 0.2114, 10: 0.2325},
-			"540p":  {5: 0.1057, 8: 0.2114, 10: 0.2325},
-			"720p":  {5: 0.1359, 8: 0.2718, 10: 0.2990},
-			"1080p": {5: 0.2265, 8: 0.4530, 10: 0.4983},
+		audioValue := "off"
+		if audio {
+			audioValue = "on"
 		}
-		return prices[quality][duration], nil
+		prices := map[string]map[int]float64{
+			"360p:off":  {5: 0.1057, 8: 0.2114, 10: 0.2325},
+			"540p:off":  {5: 0.1057, 8: 0.2114, 10: 0.2325},
+			"720p:off":  {5: 0.1359, 8: 0.2718, 10: 0.2990},
+			"1080p:off": {5: 0.2265, 8: 0.4530, 10: 0.4983},
+			"360p:on":   {5: 0.2416, 8: 0.3473, 10: 0.3684},
+			"540p:on":   {5: 0.2416, 8: 0.3473, 10: 0.3684},
+			"720p:on":   {5: 0.2718, 8: 0.4077, 10: 0.4349},
+			"1080p:on":  {5: 0.3624, 8: 0.5889, 10: 0.6342},
+		}
+		return prices[quality+":"+audioValue][duration], nil
 	}
 	if version == "v5.5" {
 		if duration != 5 && duration != 8 && duration != 10 {
 			return 0, fmt.Errorf("pixverse v5.5 duration must be 5, 8, or 10 seconds")
 		}
 		multiplier := map[int]float64{5: 1, 8: 2, 10: 2.2}[duration]
-		return float64(baseCredits[quality]) * multiplier * 0.00302, nil
+		credits := float64(baseCredits[quality]) * multiplier
+		if audio {
+			credits += 10
+		}
+		return credits * 0.00302, nil
+	}
+	if audio {
+		return 0, fmt.Errorf("pixverse %s does not support audio generation", version)
 	}
 	if version == "v5" {
 		if duration != 5 && duration != 8 {

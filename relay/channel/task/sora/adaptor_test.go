@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -86,6 +87,18 @@ func TestGrokResponsesUseRequestIDAndCompletedVideoURL(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "https://example.com/result.mp4", result.Url)
+}
+
+func TestOpenLuxVeoResponseUsesTopLevelVideoURL(t *testing.T) {
+	result, err := (&TaskAdaptor{}).ParseTaskResult([]byte(`{
+		"id": "veo-task-id",
+		"status": "succeeded",
+		"video_url": "https://example.com/veo-result.mp4"
+	}`))
+
+	require.NoError(t, err)
+	assert.Equal(t, string(model.TaskStatusSuccess), result.Status)
+	assert.Equal(t, "https://example.com/veo-result.mp4", result.Url)
 }
 
 func TestGrokSubmitResponseAcceptsRequestID(t *testing.T) {

@@ -112,8 +112,28 @@ func VideoProxy(c *gin.Context) {
 			return
 		}
 	case constant.ChannelTypeOpenAI, constant.ChannelTypeSora:
-		videoURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
-		req.Header.Set("Authorization", "Bearer "+channel.Key)
+		apiKey := strings.TrimSpace(task.PrivateData.Key)
+		if apiKey == "" {
+			apiKey = channel.Key
+		}
+
+		storedResultURL := strings.TrimSpace(task.GetResultURL())
+		if storedResultURL != "" && !isTaskProxyContentURL(storedResultURL, task.TaskID) {
+			videoURL = storedResultURL
+		} else if resolvedURL, resolveErr := resolveOpenAIVideoResultURL(channel, task); resolveErr == nil {
+			videoURL = resolvedURL
+			snapshot := task.Snapshot()
+			task.PrivateData.ResultURL = resolvedURL
+			if _, updateErr := task.UpdateWithStatus(snapshot.Status); updateErr != nil {
+				logger.LogWarn(c.Request.Context(), fmt.Sprintf("Failed to persist resolved video URL for task %s: %s", taskID, updateErr.Error()))
+			}
+		} else {
+			logger.LogWarn(c.Request.Context(), fmt.Sprintf("Failed to resolve video URL for task %s, falling back to content endpoint: %s", taskID, resolveErr.Error()))
+			videoURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
+		}
+		if strings.HasPrefix(videoURL, strings.TrimRight(baseURL, "/")+"/") {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
 	default:
 		// Video URL is stored in PrivateData.ResultURL (fallback to FailReason for old data)
 		videoURL = task.GetResultURL()

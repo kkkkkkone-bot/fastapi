@@ -28,13 +28,14 @@ import (
 // ============================
 
 type submitRequest struct {
-	Prompt      string   `json:"prompt"`
-	Model       string   `json:"model"`
-	Quality     string   `json:"quality"`
-	Duration    int      `json:"duration"`
-	AspectRatio string   `json:"aspect_ratio"`
-	MotionMode  string   `json:"motion_mode,omitempty"`
-	Images      []string `json:"images,omitempty"`
+	Prompt            string   `json:"prompt"`
+	Model             string   `json:"model"`
+	Quality           string   `json:"quality"`
+	Duration          int      `json:"duration"`
+	AspectRatio       string   `json:"aspect_ratio"`
+	MotionMode        string   `json:"motion_mode,omitempty"`
+	SoundEffectSwitch *bool    `json:"sound_effect_switch,omitempty"`
+	Images            []string `json:"images,omitempty"`
 }
 
 type submitResponse struct {
@@ -100,7 +101,11 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	version := a.getMetadataString(req.Metadata, "model_version", "c1")
 	quality := a.getMetadataString(req.Metadata, "quality", "720p")
 	mode := strings.ToLower(strings.TrimSpace(req.Mode))
-	if _, err := pixVerseRequestPrice(version, quality, taskcommon.DefaultInt(req.Duration, 5), mode); err != nil {
+	audio, err := pixVerseAudioSetting(req.Metadata)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	if _, err := pixVerseRequestPrice(version, quality, taskcommon.DefaultInt(req.Duration, 5), mode, audio != nil && *audio); err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
 	}
 	info.Action = constant.TaskActionTextGenerate
@@ -112,6 +117,10 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	if err != nil {
 		return nil
 	}
+	audio, err := pixVerseAudioSetting(req.Metadata)
+	if err != nil {
+		return nil
+	}
 	multiplier, err := video_pricing.EstimateMultiplier(
 		video_pricing.PixVerseVideoModel,
 		video_pricing.Options{
@@ -119,6 +128,7 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 			Resolution:   a.getMetadataString(req.Metadata, "quality", "720p"),
 			Duration:     taskcommon.DefaultInt(req.Duration, 5),
 			Mode:         strings.ToLower(strings.TrimSpace(req.Mode)),
+			Audio:        audio != nil && *audio,
 		},
 	)
 	if err != nil {
@@ -308,6 +318,11 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 		AspectRatio: resolveAspectRatio(taskcommon.DefaultString(req.Size, "16:9")),
 		Images:      req.Images,
 	}
+	soundEffectSwitch, err := pixVerseAudioSetting(req.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	body.SoundEffectSwitch = soundEffectSwitch
 	if loVersion := strings.ToLower(body.Model); loVersion == "v3.5" || loVersion == "v4" || loVersion == "v4.5" {
 		body.MotionMode = taskcommon.DefaultString(strings.ToLower(strings.TrimSpace(req.Mode)), "normal")
 	}
@@ -323,6 +338,33 @@ func (a *TaskAdaptor) getMetadataString(metadata map[string]any, key, fallback s
 		return v
 	}
 	return fallback
+}
+
+func pixVerseAudioSetting(metadata map[string]any) (*bool, error) {
+	if metadata == nil {
+		return nil, nil
+	}
+	raw, exists := metadata["sound"]
+	if !exists {
+		return nil, nil
+	}
+	if enabled, ok := raw.(bool); ok {
+		return &enabled, nil
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return nil, fmt.Errorf("pixverse sound must be on, off, true, or false")
+	}
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "on", "true":
+		enabled := true
+		return &enabled, nil
+	case "off", "false":
+		enabled := false
+		return &enabled, nil
+	default:
+		return nil, fmt.Errorf("pixverse sound must be on, off, true, or false")
+	}
 }
 
 func resolveAspectRatio(size string) string {
@@ -342,7 +384,7 @@ func resolveAspectRatio(size string) string {
 	}
 }
 
-func pixVerseRequestPrice(version, quality string, duration int, mode string) (float64, error) {
+func pixVerseRequestPrice(version, quality string, duration int, mode string, audio bool) (float64, error) {
 	return video_pricing.EstimateReferencePrice(
 		video_pricing.PixVerseVideoModel,
 		video_pricing.Options{
@@ -350,6 +392,7 @@ func pixVerseRequestPrice(version, quality string, duration int, mode string) (f
 			Resolution:   quality,
 			Duration:     duration,
 			Mode:         mode,
+			Audio:        audio,
 		},
 	)
 }

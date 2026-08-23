@@ -270,6 +270,20 @@ export function GenerationWorkbench({ controller }: GenerationWorkbenchProps) {
           </section>
         )}
 
+        {controller.audioAlwaysOn && (
+          <section className='bg-muted/25 flex items-center justify-between gap-4 rounded-2xl border px-4 py-3'>
+            <div>
+              <Label>{t('Video Gen Native audio')}</Label>
+              <p className='text-muted-foreground mt-0.5 text-xs leading-5'>
+                {t('Video Gen Native audio note')}
+              </p>
+            </div>
+            <span className='bg-primary/10 text-primary shrink-0 rounded-full px-3 py-1 text-xs font-medium'>
+              {t('Video Gen Audio included')}
+            </span>
+          </section>
+        )}
+
         <section className='space-y-2.5'>
           <Label>{t('Video Gen Aspect ratio')}</Label>
           <div className='grid grid-cols-3 gap-2'>

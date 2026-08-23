@@ -57,3 +57,27 @@ func TestKlingPricingOmitsUnsupportedV26StandardAudio(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "audio requires pro mode")
 }
+
+func TestPixVersePricingIncludesSupportedAudioTiers(t *testing.T) {
+	pricing := GetPricing(PixVerseVideoModel)
+	require.NotNil(t, pricing)
+
+	var audioRow *Row
+	for index := range pricing.Rows {
+		row := &pricing.Rows[index]
+		if row.ModelVersion == "c1" && row.Resolution == "720p" && row.Duration == 5 && row.Audio == "on" {
+			audioRow = row
+			break
+		}
+	}
+	require.NotNil(t, audioRow)
+	assert.InDelta(t, 0.0393/pixVerseReferencePrice*5, audioRow.Multiplier, 1e-9)
+
+	_, err := EstimateReferencePrice(PixVerseVideoModel, Options{
+		ModelVersion: "v5",
+		Resolution:   "720p",
+		Duration:     5,
+		Audio:        true,
+	})
+	require.ErrorContains(t, err, "does not support audio generation")
+}

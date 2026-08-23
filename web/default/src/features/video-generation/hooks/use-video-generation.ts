@@ -672,6 +672,7 @@ export function useVideoGeneration() {
     availableModelVersions,
     availableModes,
     supportsAudio: capabilities.supportsAudio,
+    audioAlwaysOn: capabilities.audioAlwaysOn,
     maxReferenceImages: capabilities.maxReferenceImages,
     estimatedPriceUSD,
     handleGenerate,

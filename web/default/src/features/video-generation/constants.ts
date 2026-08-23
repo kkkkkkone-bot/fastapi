@@ -45,6 +45,7 @@ export interface VideoModelCapabilities {
   modelVersions: string[]
   modes: string[]
   supportsAudio: boolean
+  audioAlwaysOn: boolean
   maxReferenceImages: number
 }
 
@@ -74,6 +75,7 @@ export function getVideoModelCapabilities(
       modelVersions: [],
       modes: [],
       supportsAudio: false,
+      audioAlwaysOn: true,
       maxReferenceImages: 1,
     }
   }
@@ -95,7 +97,8 @@ export function getVideoModelCapabilities(
           : ['360p', '540p', '720p', '1080p'],
       modelVersions: versions,
       modes,
-      supportsAudio: false,
+      supportsAudio: ['c1', 'v6', 'v5.6', 'v5.5'].includes(selectedVersion),
+      audioAlwaysOn: false,
       // The image endpoint needs an uploaded img_id; data URLs are not accepted.
       maxReferenceImages: 0,
     }
@@ -111,6 +114,7 @@ export function getVideoModelCapabilities(
       modelVersions: ['kling-v2-6', 'kling-v3'],
       modes: ['std', 'pro'],
       supportsAudio: true,
+      audioAlwaysOn: false,
       maxReferenceImages: 1,
     }
   }
@@ -123,13 +127,15 @@ export function getVideoModelCapabilities(
       modelVersions: [],
       modes: [],
       supportsAudio: false,
+      audioAlwaysOn: true,
       maxReferenceImages: 2,
     }
   }
 
   if (
     normalizedModel === 'veo_3_1' ||
-    normalizedModel === 'veo_3_1-components'
+    normalizedModel === 'veo_3_1-components' ||
+    normalizedModel === 'veo_3_1-fast'
   ) {
     return {
       aspectRatios: ['9:16', '16:9'],
@@ -138,6 +144,7 @@ export function getVideoModelCapabilities(
       modelVersions: [],
       modes: [],
       supportsAudio: false,
+      audioAlwaysOn: true,
       maxReferenceImages: 0,
     }
   }
@@ -150,6 +157,7 @@ export function getVideoModelCapabilities(
       modelVersions: [],
       modes: [],
       supportsAudio: false,
+      audioAlwaysOn: false,
       maxReferenceImages: 1,
     }
   }
@@ -162,6 +170,7 @@ export function getVideoModelCapabilities(
       modelVersions: [],
       modes: [],
       supportsAudio: false,
+      audioAlwaysOn: false,
       maxReferenceImages: 1,
     }
   }
@@ -174,6 +183,7 @@ export function getVideoModelCapabilities(
       modelVersions: [],
       modes: [],
       supportsAudio: false,
+      audioAlwaysOn: false,
       maxReferenceImages: 1,
     }
   }
@@ -185,6 +195,7 @@ export function getVideoModelCapabilities(
     modelVersions: [],
     modes: [],
     supportsAudio: false,
+    audioAlwaysOn: false,
     maxReferenceImages: MAX_VIDEO_REFERENCE_IMAGES,
   }
 }

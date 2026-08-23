@@ -52,6 +52,7 @@ type responseTask struct {
 	ID                 string `json:"id"`
 	TaskID             string `json:"task_id,omitempty"` //兼容旧接口
 	RequestID          string `json:"request_id,omitempty"`
+	VideoURL           string `json:"video_url,omitempty"`
 	Object             string `json:"object"`
 	Model              string `json:"model"`
 	Status             string `json:"status"`
@@ -388,10 +389,13 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		taskResult.Status = model.TaskStatusQueued
 	case "processing", "in_progress":
 		taskResult.Status = model.TaskStatusInProgress
-	case "completed", "done":
+	case "completed", "done", "success", "succeeded":
 		taskResult.Status = model.TaskStatusSuccess
 		if resTask.Video != nil {
 			taskResult.Url = resTask.Video.URL
+		}
+		if taskResult.Url == "" {
+			taskResult.Url = resTask.VideoURL
 		}
 	case "failed", "cancelled", "expired":
 		taskResult.Status = model.TaskStatusFailure
