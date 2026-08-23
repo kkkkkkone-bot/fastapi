@@ -6,6 +6,7 @@ var ModelList = []string{
 	"grok-imagine-video-1.5-preview",
 	"veo_3_1",
 	"veo_3_1-components",
+	"veo_3_1-fast",
 }
 
 var ChannelName = "sora"

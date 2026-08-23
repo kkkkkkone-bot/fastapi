@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export const MAX_VIDEO_REFERENCE_IMAGES = 3
+export const MAX_VIDEO_REFERENCE_IMAGES = 7
 export const MAX_VIDEO_REFERENCE_IMAGE_SIZE = 10 * 1024 * 1024
 export const VIDEO_POLL_INTERVAL_MS = 3000
 
@@ -76,7 +76,7 @@ export function getVideoModelCapabilities(
       modes: [],
       supportsAudio: false,
       audioAlwaysOn: true,
-      maxReferenceImages: 1,
+      maxReferenceImages: 7,
     }
   }
 
@@ -88,6 +88,12 @@ export function getVideoModelCapabilities(
     const modes = ['v3.5', 'v4', 'v4.5'].includes(selectedVersion)
       ? ['normal', 'fast']
       : []
+    let maxReferenceImages = 2
+    if (['c1', 'v6', 'v5.6', 'v5.5'].includes(selectedVersion)) {
+      maxReferenceImages = 7
+    } else if (['v5', 'v4.5'].includes(selectedVersion)) {
+      maxReferenceImages = 3
+    }
     return {
       aspectRatios: ['1:1', '3:4', '4:3', '9:16', '16:9'],
       durations: pixVerseDurations(selectedVersion, mode),
@@ -99,8 +105,7 @@ export function getVideoModelCapabilities(
       modes,
       supportsAudio: ['c1', 'v6', 'v5.6', 'v5.5'].includes(selectedVersion),
       audioAlwaysOn: false,
-      // The image endpoint needs an uploaded img_id; data URLs are not accepted.
-      maxReferenceImages: 0,
+      maxReferenceImages,
     }
   }
 
@@ -115,7 +120,7 @@ export function getVideoModelCapabilities(
       modes: ['std', 'pro'],
       supportsAudio: true,
       audioAlwaysOn: false,
-      maxReferenceImages: 1,
+      maxReferenceImages: 2,
     }
   }
 
@@ -145,7 +150,7 @@ export function getVideoModelCapabilities(
       modes: [],
       supportsAudio: false,
       audioAlwaysOn: true,
-      maxReferenceImages: 0,
+      maxReferenceImages: normalizedModel === 'veo_3_1-components' ? 3 : 2,
     }
   }
 

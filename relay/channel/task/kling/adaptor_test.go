@@ -138,3 +138,24 @@ func TestKlingV3BillingMatrix(t *testing.T) {
 	require.NoError(t, err)
 	assert.InDelta(t, 0.1058*15, price, 1e-9)
 }
+
+func TestKlingImagesMapToFirstAndLastFrames(t *testing.T) {
+	request := &relaycommon.TaskSubmitReq{
+		Prompt:   "Move from day to night",
+		Duration: 5,
+		Images: []string{
+			"https://example.com/first.png",
+			"https://example.com/last.png",
+		},
+		Metadata: map[string]any{"model_version": "kling-v2-6"},
+	}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "kling-video"},
+	}
+
+	payload, err := (&TaskAdaptor{}).convertToRequestPayload(request, info)
+
+	require.NoError(t, err)
+	assert.Equal(t, request.Images[0], payload.Image)
+	assert.Equal(t, request.Images[1], payload.ImageTail)
+}

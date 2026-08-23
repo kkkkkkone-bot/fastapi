@@ -2,10 +2,13 @@ package pixverse
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"strings"
 	"time"
 
@@ -28,15 +31,31 @@ import (
 // ============================
 
 type submitRequest struct {
-	Prompt            string   `json:"prompt"`
-	Model             string   `json:"model"`
-	Quality           string   `json:"quality"`
-	Duration          int      `json:"duration"`
-	AspectRatio       string   `json:"aspect_ratio"`
-	MotionMode        string   `json:"motion_mode,omitempty"`
-	SoundEffectSwitch *bool    `json:"sound_effect_switch,omitempty"`
-	Images            []string `json:"images,omitempty"`
+	Prompt            string  `json:"prompt"`
+	Model             string  `json:"model"`
+	Quality           string  `json:"quality"`
+	Duration          int     `json:"duration"`
+	AspectRatio       string  `json:"aspect_ratio"`
+	MotionMode        string  `json:"motion_mode,omitempty"`
+	SoundEffectSwitch *bool   `json:"sound_effect_switch,omitempty"`
+	ImgID             int64   `json:"img_id,omitempty"`
+	FirstFrameImg     int64   `json:"first_frame_img,omitempty"`
+	LastFrameImg      int64   `json:"last_frame_img,omitempty"`
+	ImgIDs            []int64 `json:"img_ids,omitempty"`
 }
+
+type imageUploadResponse struct {
+	ErrCode  int    `json:"ErrCode"`
+	ErrMsg   string `json:"ErrMsg"`
+	RespData struct {
+		ID int64 `json:"id"`
+	} `json:"RespData"`
+}
+
+const (
+	pixVerseActionTransition = "transition"
+	pixVerseActionFusion     = "fusion"
+)
 
 type submitResponse struct {
 	TaskID  string `json:"task_id"`
@@ -95,10 +114,15 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if err != nil {
 		return service.TaskErrorWrapper(err, "get_task_request_failed", http.StatusBadRequest)
 	}
-	if req.HasImage() {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("pixverse-video reference images require an upstream img_id upload and are not supported by this endpoint"), "invalid_request", http.StatusBadRequest)
-	}
 	version := a.getMetadataString(req.Metadata, "model_version", "c1")
+	maxImages := maxPixVerseReferenceImages(version)
+	if len(req.Images) > maxImages {
+		return service.TaskErrorWrapperLocal(
+			fmt.Errorf("pixverse %s accepts at most %d input images", version, maxImages),
+			"invalid_request",
+			http.StatusBadRequest,
+		)
+	}
 	quality := a.getMetadataString(req.Metadata, "quality", "720p")
 	mode := strings.ToLower(strings.TrimSpace(req.Mode))
 	audio, err := pixVerseAudioSetting(req.Metadata)
@@ -108,7 +132,16 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if _, err := pixVerseRequestPrice(version, quality, taskcommon.DefaultInt(req.Duration, 5), mode, audio != nil && *audio); err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
 	}
-	info.Action = constant.TaskActionTextGenerate
+	switch len(req.Images) {
+	case 0:
+		info.Action = constant.TaskActionTextGenerate
+	case 1:
+		info.Action = constant.TaskActionGenerate
+	case 2:
+		info.Action = pixVerseActionTransition
+	default:
+		info.Action = pixVerseActionFusion
+	}
 	return nil
 }
 
@@ -138,7 +171,16 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
-	return fmt.Sprintf("%s/openapi/v2/video/text/generate", a.baseURL), nil
+	path := "/openapi/v2/video/text/generate"
+	switch info.Action {
+	case constant.TaskActionGenerate:
+		path = "/openapi/v2/video/img/generate"
+	case pixVerseActionTransition:
+		path = "/openapi/v2/video/transition/generate"
+	case pixVerseActionFusion:
+		path = "/openapi/v2/video/fusion/generate"
+	}
+	return a.baseURL + path, nil
 }
 
 func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info *relaycommon.RelayInfo) error {
@@ -170,7 +212,33 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 }
 
 func (a *TaskAdaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (*http.Response, error) {
-	return channel.DoTaskApiRequest(a, c, info, requestBody)
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil || len(req.Images) == 0 {
+		return channel.DoTaskApiRequest(a, c, info, requestBody)
+	}
+
+	imageIDs, err := a.uploadImages(c, info, req.Images)
+	if err != nil {
+		return nil, err
+	}
+	body, err := a.convertToRequestPayload(&req, info)
+	if err != nil {
+		return nil, err
+	}
+	switch len(imageIDs) {
+	case 1:
+		body.ImgID = imageIDs[0]
+	case 2:
+		body.FirstFrameImg = imageIDs[0]
+		body.LastFrameImg = imageIDs[1]
+	default:
+		body.ImgIDs = imageIDs
+	}
+	data, err := common.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return channel.DoTaskApiRequest(a, c, info, bytes.NewReader(data))
 }
 
 func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (taskID string, taskData []byte, taskErr *dto.TaskError) {
@@ -316,7 +384,6 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 		Quality:     a.getMetadataString(req.Metadata, "quality", "720p"),
 		Duration:    duration,
 		AspectRatio: resolveAspectRatio(taskcommon.DefaultString(req.Size, "16:9")),
-		Images:      req.Images,
 	}
 	soundEffectSwitch, err := pixVerseAudioSetting(req.Metadata)
 	if err != nil {
@@ -328,6 +395,121 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 	}
 
 	return body, nil
+}
+
+func maxPixVerseReferenceImages(version string) int {
+	switch strings.ToLower(strings.TrimSpace(version)) {
+	case "c1", "v6", "v5.6", "v5.5":
+		return 7
+	case "v5", "v4.5":
+		return 3
+	default:
+		return 2
+	}
+}
+
+func (a *TaskAdaptor) uploadImages(c *gin.Context, info *relaycommon.RelayInfo, images []string) ([]int64, error) {
+	client, err := service.GetHttpClientWithProxy(info.ChannelSetting.Proxy)
+	if err != nil {
+		return nil, fmt.Errorf("create pixverse image upload client: %w", err)
+	}
+
+	imageIDs := make([]int64, 0, len(images))
+	for index, image := range images {
+		body, contentType, err := pixVerseImageUploadBody(image, index)
+		if err != nil {
+			return nil, err
+		}
+		request, err := http.NewRequestWithContext(
+			c.Request.Context(),
+			http.MethodPost,
+			a.baseURL+"/openapi/v2/image/upload",
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create pixverse image upload request: %w", err)
+		}
+		request.Header.Set("Content-Type", contentType)
+		request.Header.Set("Accept", "application/json")
+		request.Header.Set("Authorization", "Bearer "+info.ApiKey)
+		request.Header.Set("API-KEY", info.ApiKey)
+		request.Header.Set("Ai-trace-id", fmt.Sprintf("%s-image-%d", info.PublicTaskID, index+1))
+
+		response, err := client.Do(request)
+		if err != nil {
+			return nil, fmt.Errorf("upload pixverse image %d: %w", index+1, err)
+		}
+		responseBody, readErr := io.ReadAll(response.Body)
+		_ = response.Body.Close()
+		if readErr != nil {
+			return nil, fmt.Errorf("read pixverse image upload response: %w", readErr)
+		}
+		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+			return nil, fmt.Errorf("pixverse image upload failed with status %d: %s", response.StatusCode, responseBody)
+		}
+
+		var uploadResponse imageUploadResponse
+		if err := common.Unmarshal(responseBody, &uploadResponse); err != nil {
+			return nil, fmt.Errorf("decode pixverse image upload response: %w", err)
+		}
+		if uploadResponse.ErrCode != 0 || uploadResponse.RespData.ID == 0 {
+			return nil, fmt.Errorf("pixverse image upload failed: %s", uploadResponse.ErrMsg)
+		}
+		imageIDs = append(imageIDs, uploadResponse.RespData.ID)
+	}
+	return imageIDs, nil
+}
+
+func pixVerseImageUploadBody(image string, index int) ([]byte, string, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	image = strings.TrimSpace(image)
+
+	if strings.HasPrefix(image, "http://") || strings.HasPrefix(image, "https://") {
+		if err := writer.WriteField("image_url", image); err != nil {
+			return nil, "", err
+		}
+	} else {
+		comma := strings.Index(image, ",")
+		if !strings.HasPrefix(image, "data:image/") || comma < 0 {
+			return nil, "", fmt.Errorf("pixverse image %d must be a data URL or HTTP URL", index+1)
+		}
+		metadata := image[len("data:"):comma]
+		parts := strings.Split(metadata, ";")
+		if len(parts) < 2 || parts[len(parts)-1] != "base64" {
+			return nil, "", fmt.Errorf("pixverse image %d must be base64 encoded", index+1)
+		}
+		mimeType := parts[0]
+		extension := "png"
+		switch mimeType {
+		case "image/jpeg", "image/jpg":
+			extension = "jpg"
+		case "image/png":
+		case "image/webp":
+			extension = "webp"
+		default:
+			return nil, "", fmt.Errorf("unsupported pixverse image type: %s", mimeType)
+		}
+		imageBytes, err := base64.StdEncoding.DecodeString(image[comma+1:])
+		if err != nil {
+			return nil, "", fmt.Errorf("decode pixverse image %d: %w", index+1, err)
+		}
+		header := make(textproto.MIMEHeader)
+		header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename="reference-%d.%s"`, index+1, extension))
+		header.Set("Content-Type", mimeType)
+		part, err := writer.CreatePart(header)
+		if err != nil {
+			return nil, "", err
+		}
+		if _, err := part.Write(imageBytes); err != nil {
+			return nil, "", err
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+	return body.Bytes(), writer.FormDataContentType(), nil
 }
 
 func (a *TaskAdaptor) getMetadataString(metadata map[string]any, key, fallback string) string {

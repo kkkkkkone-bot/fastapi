@@ -81,3 +81,21 @@ func TestPixVersePricingIncludesSupportedAudioTiers(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "does not support audio generation")
 }
+
+func TestGrokPricingChargesEveryInputImage(t *testing.T) {
+	price, err := EstimateReferencePrice(GrokImagineVideoModel, Options{
+		Resolution:      "720p",
+		Duration:        10,
+		InputImageCount: 7,
+	})
+
+	require.NoError(t, err)
+	assert.InDelta(t, 10*0.0618+7*0.00441, price, 1e-9)
+
+	_, err = EstimateReferencePrice(GrokImagineVideoModel, Options{
+		Resolution:      "720p",
+		Duration:        10,
+		InputImageCount: 8,
+	})
+	require.ErrorContains(t, err, "at most seven")
+}

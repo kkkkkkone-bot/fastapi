@@ -40,12 +40,13 @@ type ImageURL struct {
 }
 
 type grokVideoRequest struct {
-	Model       string    `json:"model"`
-	Prompt      string    `json:"prompt"`
-	Resolution  string    `json:"resolution"`
-	AspectRatio string    `json:"aspect_ratio"`
-	Duration    int       `json:"duration"`
-	Image       *ImageURL `json:"image,omitempty"`
+	Model           string     `json:"model"`
+	Prompt          string     `json:"prompt"`
+	Resolution      string     `json:"resolution"`
+	AspectRatio     string     `json:"aspect_ratio"`
+	Duration        int        `json:"duration"`
+	Image           *ImageURL  `json:"image,omitempty"`
+	ReferenceImages []ImageURL `json:"reference_images,omitempty"`
 }
 
 type responseTask struct {
@@ -110,12 +111,31 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if taskErr = relaycommon.ValidateMultipartDirect(c, info); taskErr != nil {
 		return taskErr
 	}
-	if !isGrokVideoModel(info.OriginModelName) {
-		return nil
-	}
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	if maxImages := openLuxVeoImageLimit(info.OriginModelName); maxImages > 0 {
+		imageCount := len(req.Images)
+		if form, formErr := common.ParseMultipartFormReusable(c); formErr == nil {
+			if files := form.File["input_reference"]; len(files) > imageCount {
+				imageCount = len(files)
+			}
+		}
+		if imageCount > maxImages {
+			return service.TaskErrorWrapperLocal(
+				fmt.Errorf("%s accepts at most %d input images", info.OriginModelName, maxImages),
+				"invalid_request",
+				http.StatusBadRequest,
+			)
+		}
+		if imageCount > 0 {
+			info.Action = constant.TaskActionGenerate
+		}
+		return nil
+	}
+	if !isGrokVideoModel(info.OriginModelName) {
+		return nil
 	}
 	seconds := taskDuration(req, 1)
 	if seconds < 1 || seconds > 15 {
@@ -125,8 +145,8 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if resolution != "480p" && resolution != "720p" {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported grok video resolution: %s", resolution), "invalid_request", http.StatusBadRequest)
 	}
-	if len(req.Images) > 1 {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("grok video accepts at most one input image"), "invalid_request", http.StatusBadRequest)
+	if len(req.Images) > 7 {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("grok video accepts at most seven input images"), "invalid_request", http.StatusBadRequest)
 	}
 	return nil
 }
@@ -146,9 +166,9 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 		multiplier, err := video_pricing.EstimateMultiplier(
 			video_pricing.GrokImagineVideoModel,
 			video_pricing.Options{
-				Resolution: metadataString(req.Metadata, "quality", "480p"),
-				Duration:   taskDuration(req, 1),
-				InputImage: req.HasImage(),
+				Resolution:      metadataString(req.Metadata, "quality", "480p"),
+				Duration:        taskDuration(req, 1),
+				InputImageCount: len(req.Images),
 			},
 		)
 		if err != nil {
@@ -210,8 +230,13 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 			AspectRatio: resolveAspectRatio(req.Size),
 			Duration:    taskDuration(req, 1),
 		}
-		if len(req.Images) > 0 {
+		if len(req.Images) == 1 {
 			body.Image = &ImageURL{URL: req.Images[0]}
+		} else if len(req.Images) > 1 {
+			body.ReferenceImages = make([]ImageURL, 0, len(req.Images))
+			for _, image := range req.Images {
+				body.ReferenceImages = append(body.ReferenceImages, ImageURL{URL: image})
+			}
 		}
 		data, err := common.Marshal(body)
 		if err != nil {
@@ -455,6 +480,17 @@ func (a *TaskAdaptor) ConvertToOpenAIVideo(task *model.Task) ([]byte, error) {
 
 func isGrokVideoModel(modelName string) bool {
 	return strings.EqualFold(strings.TrimSpace(modelName), "grok-imagine-video-1.5-preview")
+}
+
+func openLuxVeoImageLimit(modelName string) int {
+	switch strings.ToLower(strings.TrimSpace(modelName)) {
+	case "veo_3_1", "veo_3_1-fast":
+		return 2
+	case "veo_3_1-components":
+		return 3
+	default:
+		return 0
+	}
 }
 
 func metadataString(metadata map[string]any, key, fallback string) string {

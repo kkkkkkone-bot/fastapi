@@ -1,6 +1,9 @@
 package pixverse
 
 import (
+	"bytes"
+	"mime"
+	"mime/multipart"
 	"testing"
 
 	"github.com/QuantumNous/new-api/model"
@@ -79,4 +82,28 @@ func TestPixVerseParseOfficialTaskResult(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, model.TaskStatusSuccess, result.Status)
 	assert.Equal(t, "https://example.com/video.mp4", result.Url)
+}
+
+func TestPixVerseReferenceImageLimits(t *testing.T) {
+	assert.Equal(t, 7, maxPixVerseReferenceImages("c1"))
+	assert.Equal(t, 7, maxPixVerseReferenceImages("v5.5"))
+	assert.Equal(t, 3, maxPixVerseReferenceImages("v5"))
+	assert.Equal(t, 3, maxPixVerseReferenceImages("v4.5"))
+	assert.Equal(t, 2, maxPixVerseReferenceImages("v4"))
+}
+
+func TestPixVerseImageUploadBodyUsesBinaryImageField(t *testing.T) {
+	body, contentType, err := pixVerseImageUploadBody(
+		"data:image/png;base64,aW1hZ2U=",
+		0,
+	)
+	require.NoError(t, err)
+
+	_, params, err := mime.ParseMediaType(contentType)
+	require.NoError(t, err)
+	form, err := multipart.NewReader(bytes.NewReader(body), params["boundary"]).ReadForm(1024)
+	require.NoError(t, err)
+	require.Contains(t, form.File, "image")
+	require.Len(t, form.File["image"], 1)
+	assert.Equal(t, "reference-1.png", form.File["image"][0].Filename)
 }

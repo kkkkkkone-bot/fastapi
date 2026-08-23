@@ -211,6 +211,25 @@ export function useVideoGeneration() {
     })
     if (!priceRow) return undefined
 
+    let multiplier = priceRow.multiplier
+    if (
+      model.toLowerCase() === 'grok-imagine-video-1.5-preview' &&
+      referenceImages.length > 1
+    ) {
+      const textRow = findVideoPricingRow(rows, {
+        modelVersion,
+        resolution: quality,
+        duration,
+        mode,
+        audioEnabled,
+        hasInputImage: false,
+      })
+      if (textRow) {
+        const perImageSurcharge = priceRow.multiplier - textRow.multiplier
+        multiplier += perImageSurcharge * (referenceImages.length - 1)
+      }
+    }
+
     let billingGroup = group
     if (group === 'auto') {
       billingGroup =
@@ -227,7 +246,7 @@ export function useVideoGeneration() {
       Number.isFinite(configuredGroupRatio)
         ? configuredGroupRatio
         : 1
-    return (pricingModel.model_price ?? 0) * priceRow.multiplier * groupRatio
+    return (pricingModel.model_price ?? 0) * multiplier * groupRatio
   }, [
     audioEnabled,
     duration,
@@ -348,7 +367,7 @@ export function useVideoGeneration() {
         capabilities.maxReferenceImages - referenceImages.length
       const acceptedFiles = files
         .filter((file) => {
-          if (!file.type.startsWith('image/')) {
+          if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
             toast.error(t('Video Gen Only image files are supported'))
             return false
           }

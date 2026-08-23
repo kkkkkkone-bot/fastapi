@@ -5095,7 +5095,7 @@
     "Video Gen Reference image count limit": "This model supports up to {{count}} reference images",
     "Video Gen Reference image size limit": "Each reference image must be 10 MB or smaller",
     "Video Gen Reference images": "Reference images",
-    "Video Gen Reference images description": "Optional · Up to {{count}} images for the first frame, subject, or style",
+    "Video Gen Reference images description": "Optional · Up to {{count}} images; the model uses the prompt to interpret frames and references",
     "Video Gen Remove reference": "Remove reference image",
     "Video Gen Results": "Video results",
     "Video Gen Results description": "Your 10 most recent tasks are saved here and checked automatically",

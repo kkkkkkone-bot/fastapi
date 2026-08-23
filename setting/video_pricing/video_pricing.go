@@ -43,12 +43,13 @@ const (
 // Options contains only request fields that can affect the price of the
 // supported aggregate video models.
 type Options struct {
-	ModelVersion string
-	Resolution   string
-	Duration     int
-	Mode         string
-	Audio        bool
-	InputImage   bool
+	ModelVersion    string
+	Resolution      string
+	Duration        int
+	Mode            string
+	Audio           bool
+	InputImage      bool
+	InputImageCount int
 }
 
 // Row is one public, supported video pricing combination. Multiplier is
@@ -225,8 +226,15 @@ func EstimateReferencePrice(model string, options Options) (float64, error) {
 			return 0, fmt.Errorf("unsupported grok video resolution: %s", resolution)
 		}
 		price := float64(options.Duration) * rate
-		if options.InputImage {
-			price += 0.00441
+		imageCount := options.InputImageCount
+		if imageCount == 0 && options.InputImage {
+			imageCount = 1
+		}
+		if imageCount < 0 || imageCount > 7 {
+			return 0, fmt.Errorf("grok video accepts at most seven input images")
+		}
+		if imageCount > 0 {
+			price += float64(imageCount) * 0.00441
 		}
 		return price, nil
 	case PixVerseVideoModel:

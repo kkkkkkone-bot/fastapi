@@ -5095,7 +5095,7 @@
     "Video Gen Reference image count limit": "该模型最多可添加 {{count}} 张参考图",
     "Video Gen Reference image size limit": "每张参考图不能超过 10 MB",
     "Video Gen Reference images": "参考图片",
-    "Video Gen Reference images description": "可选 · 最多 {{count}} 张，用于首帧、主体或风格参考",
+    "Video Gen Reference images description": "可选 · 最多 {{count}} 张，模型会结合提示词理解首帧、尾帧或参考用途",
     "Video Gen Remove reference": "移除参考图",
     "Video Gen Results": "视频结果",
     "Video Gen Results description": "自动保存最近 10 条任务，并持续查询生成进度",

@@ -65,6 +65,42 @@ func TestGrokBuildRequestBodyUsesDocumentedFields(t *testing.T) {
 	assert.Equal(t, "https://example.com/input.png", request.Image.URL)
 }
 
+func TestGrokBuildRequestBodyUsesMultipleReferenceImages(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/videos", nil)
+	ctx.Set("task_request", relaycommon.TaskSubmitReq{
+		Prompt: "Keep both characters consistent",
+		Images: []string{
+			"https://example.com/character-1.png",
+			"https://example.com/character-2.png",
+		},
+		Metadata: map[string]any{"quality": "720p"},
+	})
+	info := &relaycommon.RelayInfo{
+		OriginModelName: "grok-imagine-video-1.5-preview",
+		ChannelMeta:     &relaycommon.ChannelMeta{UpstreamModelName: "grok-imagine-video-1.5-preview"},
+		TaskRelayInfo:   &relaycommon.TaskRelayInfo{},
+	}
+
+	body, err := (&TaskAdaptor{}).BuildRequestBody(ctx, info)
+	require.NoError(t, err)
+	data, err := io.ReadAll(body)
+	require.NoError(t, err)
+	var request grokVideoRequest
+	require.NoError(t, common.Unmarshal(data, &request))
+	assert.Nil(t, request.Image)
+	require.Len(t, request.ReferenceImages, 2)
+	assert.Equal(t, "https://example.com/character-2.png", request.ReferenceImages[1].URL)
+}
+
+func TestOpenLuxVeoImageLimits(t *testing.T) {
+	assert.Equal(t, 2, openLuxVeoImageLimit("veo_3_1"))
+	assert.Equal(t, 2, openLuxVeoImageLimit("veo_3_1-fast"))
+	assert.Equal(t, 3, openLuxVeoImageLimit("veo_3_1-components"))
+	assert.Zero(t, openLuxVeoImageLimit("sora-2"))
+}
+
 func TestGrokBuildRequestURL(t *testing.T) {
 	adaptor := &TaskAdaptor{baseURL: "https://api.example.com"}
 	info := &relaycommon.RelayInfo{

@@ -63,7 +63,7 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
       <input
         ref={inputRef}
         type='file'
-        accept='image/png,image/jpeg,image/webp,image/gif'
+        accept='image/png,image/jpeg,image/webp'
         multiple={props.maxImages > 1}
         className='sr-only'
         onChange={(event) => {

@@ -33,19 +33,26 @@ export async function submitVideoTask(
   signal?: AbortSignal
 ): Promise<VideoTaskResponse> {
   let body: VideoGenerationRequest | FormData = payload
+  const normalizedModel = payload.model.toLowerCase()
+  const usesOpenAIVideoUpload =
+    normalizedModel.startsWith('sora-2') ||
+    normalizedModel === 'veo_3_1' ||
+    normalizedModel === 'veo_3_1-fast' ||
+    normalizedModel === 'veo_3_1-components'
 
-  if (payload.model.toLowerCase().startsWith('sora-2') && referenceFiles[0]) {
+  if (usesOpenAIVideoUpload && referenceFiles[0]) {
     const formData = new FormData()
     formData.append('model', payload.model)
     if (payload.group) formData.append('group', payload.group)
     formData.append('prompt', payload.prompt)
     formData.append('seconds', payload.seconds)
     formData.append('size', payload.size)
-    formData.append(
-      'input_reference',
-      referenceFiles[0],
-      referenceFiles[0].name
-    )
+    const files = normalizedModel.startsWith('sora-2')
+      ? referenceFiles.slice(0, 1)
+      : referenceFiles
+    files.forEach((file) => {
+      formData.append('input_reference', file, file.name)
+    })
     body = formData
   }
 

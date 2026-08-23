@@ -150,6 +150,9 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	); err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
 	}
+	if len(req.Images) > 2 {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("kling-video accepts at most two input images"), "invalid_request", http.StatusBadRequest)
+	}
 	return nil
 }
 
@@ -342,6 +345,12 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 	delete(metadata, "model_version")
 	if err := taskcommon.UnmarshalMetadata(metadata, &r); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
+	}
+	if len(req.Images) > 0 {
+		r.Image = req.Images[0]
+	}
+	if len(req.Images) > 1 {
+		r.ImageTail = req.Images[1]
 	}
 	duration, err := strconv.Atoi(r.Duration)
 	if err != nil {
