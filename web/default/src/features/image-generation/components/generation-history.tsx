@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Download, History, ImageIcon, RotateCcw, Trash2 } from 'lucide-react'
+import { Download, ImageIcon, RotateCcw, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -43,7 +43,7 @@ export function GenerationHistory(props: GenerationHistoryProps) {
       <div className='mb-4 flex shrink-0 items-center justify-between gap-3'>
         <div>
           <h2 className='flex items-center gap-2 text-base font-semibold'>
-            <History className='text-primary size-4' />
+            <ImageIcon className='text-primary size-4' />
             {t('Image Gen Session history')}
           </h2>
           <p className='text-muted-foreground mt-1 text-xs'>

@@ -25,6 +25,7 @@ import (
 	taskcommon "github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
+	video_pricing "github.com/QuantumNous/new-api/setting/video_pricing"
 )
 
 // ============================
@@ -61,6 +62,7 @@ type requestPayload struct {
 	ImageTail      string         `json:"image_tail,omitempty"`
 	NegativePrompt string         `json:"negative_prompt,omitempty"`
 	Mode           string         `json:"mode,omitempty"`
+	Sound          string         `json:"sound,omitempty"`
 	Duration       string         `json:"duration,omitempty"`
 	AspectRatio    string         `json:"aspect_ratio,omitempty"`
 	ModelName      string         `json:"model_name,omitempty"`
@@ -129,7 +131,54 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 // ValidateRequestAndSetAction parses body, validates fields and sets default action.
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *dto.TaskError) {
 	// Use the standard validation method for TaskSubmitReq
-	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+	if taskErr = relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate); taskErr != nil {
+		return taskErr
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	modelName, err := resolveKlingModelName(info.OriginModelName, req.Metadata)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	if err := validateKlingOptions(
+		modelName,
+		taskcommon.DefaultString(strings.ToLower(strings.TrimSpace(req.Mode)), "std"),
+		taskcommon.DefaultInt(req.Duration, 5),
+		metadataString(req.Metadata, "sound", "off"),
+	); err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	return nil
+}
+
+func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return nil
+	}
+	payload, err := a.convertToRequestPayload(&req, info)
+	if err != nil {
+		return nil
+	}
+	duration, err := strconv.Atoi(payload.Duration)
+	if err != nil {
+		return nil
+	}
+	multiplier, err := video_pricing.EstimateMultiplier(
+		video_pricing.KlingVideoModel,
+		video_pricing.Options{
+			ModelVersion: payload.ModelName,
+			Duration:     duration,
+			Mode:         payload.Mode,
+			Audio:        payload.Sound == "on",
+		},
+	)
+	if err != nil {
+		return nil
+	}
+	return map[string]float64{"request_cost": multiplier}
 }
 
 // BuildRequestURL constructs the upstream URL.
@@ -252,7 +301,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 }
 
 func (a *TaskAdaptor) GetModelList() []string {
-	return []string{"kling-v1", "kling-v1-6", "kling-v2-master"}
+	return []string{"kling-video", "kling-v3", "kling-v2-6", "kling-v1", "kling-v1-6", "kling-v2-master"}
 }
 
 func (a *TaskAdaptor) GetChannelName() string {
@@ -264,14 +313,19 @@ func (a *TaskAdaptor) GetChannelName() string {
 // ============================
 
 func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, info *relaycommon.RelayInfo) (*requestPayload, error) {
+	modelName, err := resolveKlingModelName(info.UpstreamModelName, req.Metadata)
+	if err != nil {
+		return nil, err
+	}
 	r := requestPayload{
 		Prompt:         req.Prompt,
 		Image:          req.Image,
 		Mode:           taskcommon.DefaultString(req.Mode, "std"),
+		Sound:          metadataString(req.Metadata, "sound", "off"),
 		Duration:       fmt.Sprintf("%d", taskcommon.DefaultInt(req.Duration, 5)),
 		AspectRatio:    a.getAspectRatio(req.Size),
-		ModelName:      info.UpstreamModelName,
-		Model:          info.UpstreamModelName,
+		ModelName:      modelName,
+		Model:          modelName,
 		CfgScale:       0.5,
 		StaticMask:     "",
 		DynamicMasks:   []DynamicMask{},
@@ -279,14 +333,92 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 		CallbackUrl:    "",
 		ExternalTaskId: "",
 	}
-	if r.ModelName == "" {
-		r.ModelName = "kling-v1"
-		r.Model = "kling-v1"
+	metadata := make(map[string]any, len(req.Metadata))
+	for key, value := range req.Metadata {
+		metadata[key] = value
 	}
-	if err := taskcommon.UnmarshalMetadata(req.Metadata, &r); err != nil {
+	delete(metadata, "model")
+	delete(metadata, "model_name")
+	delete(metadata, "model_version")
+	if err := taskcommon.UnmarshalMetadata(metadata, &r); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
 	}
+	duration, err := strconv.Atoi(r.Duration)
+	if err != nil {
+		return nil, errors.New("kling duration must be an integer")
+	}
+	r.Mode = strings.ToLower(strings.TrimSpace(r.Mode))
+	r.Sound = strings.ToLower(strings.TrimSpace(r.Sound))
+	if err := validateKlingOptions(r.ModelName, r.Mode, duration, r.Sound); err != nil {
+		return nil, err
+	}
 	return &r, nil
+}
+
+func resolveKlingModelName(upstreamModelName string, metadata map[string]any) (string, error) {
+	modelName := strings.TrimSpace(upstreamModelName)
+	if modelName == "" {
+		return "kling-v1", nil
+	}
+	if !strings.EqualFold(modelName, "kling-video") {
+		return modelName, nil
+	}
+
+	modelVersion := "kling-v2-6"
+	if rawVersion, exists := metadata["model_version"]; exists {
+		version, ok := rawVersion.(string)
+		if !ok {
+			return "", errors.New("kling model_version must be a string")
+		}
+		if strings.TrimSpace(version) != "" {
+			modelVersion = strings.ToLower(strings.TrimSpace(version))
+		}
+	}
+	if modelVersion != "kling-v2-6" && modelVersion != "kling-v3" {
+		return "", fmt.Errorf("unsupported kling model_version: %s", modelVersion)
+	}
+	return modelVersion, nil
+}
+
+func validateKlingOptions(modelName, mode string, duration int, sound string) error {
+	if modelName != "kling-v2-6" && modelName != "kling-v3" {
+		return nil
+	}
+	if sound != "off" && sound != "on" {
+		return fmt.Errorf("kling sound must be off or on")
+	}
+	_, err := video_pricing.EstimateReferencePrice(
+		video_pricing.KlingVideoModel,
+		video_pricing.Options{
+			ModelVersion: modelName,
+			Duration:     duration,
+			Mode:         mode,
+			Audio:        sound == "on",
+		},
+	)
+	return err
+}
+
+func klingRequestPrice(modelName, mode string, duration int, sound string) (float64, error) {
+	if err := validateKlingOptions(modelName, mode, duration, sound); err != nil {
+		return 0, err
+	}
+	return video_pricing.EstimateReferencePrice(
+		video_pricing.KlingVideoModel,
+		video_pricing.Options{
+			ModelVersion: modelName,
+			Duration:     duration,
+			Mode:         mode,
+			Audio:        sound == "on",
+		},
+	)
+}
+
+func metadataString(metadata map[string]any, key, fallback string) string {
+	if value, ok := metadata[key].(string); ok && strings.TrimSpace(value) != "" {
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+	return fallback
 }
 
 func (a *TaskAdaptor) getAspectRatio(size string) string {

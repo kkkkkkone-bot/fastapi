@@ -16,38 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Clapperboard, WandSparkles } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
-import { Badge } from '@/components/ui/badge'
-
 import { GenerationHistory } from './components/generation-history'
 import { GenerationWorkbench } from './components/generation-workbench'
 import { useVideoGeneration } from './hooks/use-video-generation'
 
 export function VideoGeneration() {
-  const { t } = useTranslation()
   const controller = useVideoGeneration()
 
   return (
     <div className='bg-muted/10 min-h-full overflow-y-auto'>
-      <div className='mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8'>
-        <header className='mb-6'>
-          <Badge variant='outline' className='bg-background/70 mb-3 gap-1.5'>
-            <WandSparkles className='text-primary' />
-            {t('Video Gen Creative studio')}
-          </Badge>
-          <h1 className='flex items-center gap-2.5 text-2xl font-semibold tracking-tight sm:text-3xl'>
-            <span className='bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-xl shadow-sm'>
-              <Clapperboard className='size-4' />
-            </span>
-            {t('Video Generation')}
-          </h1>
-          <p className='text-muted-foreground mt-2 max-w-2xl text-sm leading-6'>
-            {t('Video Gen Page description')}
-          </p>
-        </header>
-
+      <div className='mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8'>
         <div className='grid items-start gap-6 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] xl:gap-8'>
           <GenerationWorkbench controller={controller} />
           <GenerationHistory

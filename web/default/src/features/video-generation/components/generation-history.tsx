@@ -30,6 +30,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Progress, ProgressLabel } from '@/components/ui/progress'
 import { toIntlLocale } from '@/i18n/languages'
 
+import { getVideoModelVersionLabel } from '../constants'
 import type { VideoGenerationRecord } from '../types'
 
 interface GenerationHistoryProps {
@@ -104,7 +105,12 @@ export function GenerationHistory(props: GenerationHistoryProps) {
                     {record.prompt}
                   </p>
                   <p className='text-muted-foreground mt-1 text-xs'>
-                    {record.model} · {record.aspectRatio} ·{' '}
+                    {record.model}
+                    {record.modelVersion
+                      ? ` · ${getVideoModelVersionLabel(record.modelVersion)}`
+                      : ''}
+                    {record.quality ? ` · ${record.quality}` : ''} ·{' '}
+                    {record.aspectRatio} ·{' '}
                     {t('Video Gen Seconds', { count: record.duration })} ·{' '}
                     {new Intl.DateTimeFormat(toIntlLocale(i18n.language), {
                       hour: '2-digit',

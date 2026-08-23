@@ -34,6 +34,8 @@ func TestIsVideoGenerationModelRecognizesSupportedModelFamilies(t *testing.T) {
 	}{
 		{model: "sora-2-pro", want: true},
 		{model: "veo-3.1-generate-preview", want: true},
+		{model: "veo_3_1-components", want: true},
+		{model: "grok-imagine-video-1.5-preview", want: true},
 		{model: "kling-v2-master", want: true},
 		{model: "MiniMax-Hailuo-2.3", want: true},
 		{model: "doubao-seedance-2-0-260128", want: true},

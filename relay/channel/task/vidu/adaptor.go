@@ -18,6 +18,7 @@ import (
 	taskcommon "github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
+	video_pricing "github.com/QuantumNous/new-api/setting/video_pricing"
 
 	"github.com/pkg/errors"
 )
@@ -105,6 +106,19 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if err != nil {
 		return service.TaskErrorWrapper(err, "get_task_request_failed", http.StatusBadRequest)
 	}
+	if isViduQ3Turbo(info.OriginModelName) {
+		duration := taskcommon.DefaultInt(req.Duration, 5)
+		if duration < 1 || duration > 16 {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("viduq3-turbo duration must be between 1 and 16 seconds"), "invalid_request", http.StatusBadRequest)
+		}
+		resolution := metadataString(req.Metadata, "quality", "1080p")
+		if resolution != "540p" && resolution != "720p" && resolution != "1080p" {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported viduq3-turbo resolution: %s", resolution), "invalid_request", http.StatusBadRequest)
+		}
+		if len(req.Images) > 2 {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("viduq3-turbo accepts at most two input images"), "invalid_request", http.StatusBadRequest)
+		}
+	}
 	action := constant.TaskActionTextGenerate
 	if meatAction, ok := req.Metadata["action"]; ok {
 		action, _ = meatAction.(string)
@@ -121,6 +135,27 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	}
 	info.Action = action
 	return nil
+}
+
+func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
+	if !isViduQ3Turbo(info.OriginModelName) && !isViduQ3Turbo(info.UpstreamModelName) {
+		return nil
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return nil
+	}
+	multiplier, err := video_pricing.EstimateMultiplier(
+		video_pricing.ViduQ3TurboModel,
+		video_pricing.Options{
+			Resolution: metadataString(req.Metadata, "quality", "1080p"),
+			Duration:   taskcommon.DefaultInt(req.Duration, 5),
+		},
+	)
+	if err != nil {
+		return nil
+	}
+	return map[string]float64{"request_cost": multiplier}
 }
 
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
@@ -227,7 +262,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 }
 
 func (a *TaskAdaptor) GetModelList() []string {
-	return []string{"viduq2", "viduq1", "vidu2.0", "vidu1.5"}
+	return []string{"viduq3-turbo", "viduq2", "viduq1", "vidu2.0", "vidu1.5"}
 }
 
 func (a *TaskAdaptor) GetChannelName() string {
@@ -239,19 +274,43 @@ func (a *TaskAdaptor) GetChannelName() string {
 // ============================
 
 func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, info *relaycommon.RelayInfo) (*requestPayload, error) {
+	modelName := taskcommon.DefaultString(info.UpstreamModelName, "viduq1")
+	resolution := metadataString(req.Metadata, "quality", taskcommon.DefaultString(req.Size, "1080p"))
+	if isViduQ3Turbo(modelName) {
+		resolution = metadataString(req.Metadata, "quality", "1080p")
+	}
 	r := requestPayload{
-		Model:             taskcommon.DefaultString(info.UpstreamModelName, "viduq1"),
+		Model:             modelName,
 		Images:            req.Images,
 		Prompt:            req.Prompt,
 		Duration:          taskcommon.DefaultInt(req.Duration, 5),
-		Resolution:        taskcommon.DefaultString(req.Size, "1080p"),
+		Resolution:        resolution,
 		MovementAmplitude: "auto",
 		Bgm:               false,
 	}
 	if err := taskcommon.UnmarshalMetadata(req.Metadata, &r); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
 	}
+	if isViduQ3Turbo(r.Model) {
+		if r.Duration < 1 || r.Duration > 16 {
+			return nil, errors.New("viduq3-turbo duration must be between 1 and 16 seconds")
+		}
+		if r.Resolution != "540p" && r.Resolution != "720p" && r.Resolution != "1080p" {
+			return nil, fmt.Errorf("unsupported viduq3-turbo resolution: %s", r.Resolution)
+		}
+	}
 	return &r, nil
+}
+
+func isViduQ3Turbo(modelName string) bool {
+	return strings.EqualFold(strings.TrimSpace(modelName), "viduq3-turbo")
+}
+
+func metadataString(metadata map[string]any, key, fallback string) string {
+	if value, ok := metadata[key].(string); ok && strings.TrimSpace(value) != "" {
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+	return fallback
 }
 
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {

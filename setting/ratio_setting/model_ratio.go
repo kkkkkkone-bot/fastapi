@@ -301,6 +301,15 @@ var defaultModelPrice = map[string]float64{
 	"veo-3.0-fast-generate-001":      0.15,
 	"veo-3.1-generate-preview":       0.4,
 	"veo-3.1-fast-generate-preview":  0.15,
+	"grok-imagine-video-1.5-preview": 0.0353,
+	"pixverse-video":                 0.0181,
+	// Kling/Vidu each list two upstream price groups. Defaults use the higher
+	// group to avoid undercharging; operators pinned to group 1 can lower the
+	// base price while retaining the same parameter multipliers.
+	"kling-video":        0.1875,
+	"viduq3-turbo":       0.0294,
+	"veo_3_1":            0.0565,
+	"veo_3_1-components": 0.0565,
 }
 
 var defaultAudioRatio = map[string]float64{

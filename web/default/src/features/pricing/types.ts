@@ -27,6 +27,20 @@ export type PricingVendor = {
   description?: string
 }
 
+export type VideoPricingRow = {
+  model_version?: string
+  resolution?: string
+  duration: number
+  mode?: string
+  audio?: 'on' | 'off'
+  input?: 'text' | 'image'
+  multiplier: number
+}
+
+export type VideoPricing = {
+  rows: VideoPricingRow[]
+}
+
 export type PricingModel = {
   id: number
   model_name: string
@@ -54,6 +68,8 @@ export type PricingModel = {
   billing_mode?: string
   /** Raw expression describing dynamic / tiered billing */
   billing_expr?: string
+  /** Supported video specification combinations and their base-price multipliers. */
+  video_pricing?: VideoPricing
   /** Pricing version returned by backend, useful for cache busting */
   pricing_version?: string
   /**

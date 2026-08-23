@@ -23,20 +23,20 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-import { MAX_VIDEO_REFERENCE_IMAGES } from '../constants'
 import type { VideoReferenceImage } from '../types'
 
 interface ReferenceImageUploaderProps {
   images: VideoReferenceImage[]
   onAdd: (files: File[]) => void
   onRemove: (id: string) => void
+  maxImages: number
 }
 
 export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
   const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const canAddMore = props.images.length < MAX_VIDEO_REFERENCE_IMAGES
+  const canAddMore = props.images.length < props.maxImages
 
   const openPicker = () => {
     if (canAddMore) inputRef.current?.click()
@@ -50,11 +50,13 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
             {t('Video Gen Reference images')}
           </h3>
           <p className='text-muted-foreground mt-0.5 text-xs'>
-            {t('Video Gen Reference images description')}
+            {t('Video Gen Reference images description', {
+              count: props.maxImages,
+            })}
           </p>
         </div>
         <span className='text-muted-foreground text-xs tabular-nums'>
-          {props.images.length}/{MAX_VIDEO_REFERENCE_IMAGES}
+          {props.images.length}/{props.maxImages}
         </span>
       </div>
 
@@ -62,7 +64,7 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
         ref={inputRef}
         type='file'
         accept='image/png,image/jpeg,image/webp,image/gif'
-        multiple
+        multiple={props.maxImages > 1}
         className='sr-only'
         onChange={(event) => {
           props.onAdd([...(event.target.files ?? [])])

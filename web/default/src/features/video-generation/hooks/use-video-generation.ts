@@ -21,6 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { getPricing } from '@/features/pricing/api'
+import { findVideoPricingRow } from '@/features/pricing/lib/video-pricing'
 import { useAuthStore } from '@/stores/auth-store'
 
 import {
@@ -31,11 +33,7 @@ import {
   submitVideoTask,
 } from '../api'
 import {
-  getVideoAspectRatios,
-  getVideoDurations,
-  getVideoModelVersions,
-  getVideoQualities,
-  MAX_VIDEO_REFERENCE_IMAGES,
+  getVideoModelCapabilities,
   MAX_VIDEO_REFERENCE_IMAGE_SIZE,
   resolveVideoSize,
   VIDEO_POLL_INTERVAL_MS,
@@ -43,6 +41,7 @@ import {
 import {
   clearVideoGenerationHistory,
   loadVideoGenerationHistory,
+  MAX_VIDEO_GENERATION_HISTORY,
   saveVideoGenerationHistory,
 } from '../history-storage'
 import type {
@@ -151,9 +150,11 @@ export function useVideoGeneration() {
   const [group, setGroup] = useState(DEFAULT_GROUP)
   const [model, setModel] = useState('')
   const [aspectRatio, setAspectRatio] = useState('16:9')
-  const [duration, setDuration] = useState(15)
+  const [duration, setDuration] = useState(5)
   const [quality, setQuality] = useState('720p')
   const [modelVersion, setModelVersion] = useState('c1')
+  const [mode, setMode] = useState('std')
+  const [audioEnabled, setAudioEnabled] = useState(false)
   const [referenceImages, setReferenceImages] = useState<VideoReferenceImage[]>(
     []
   )
@@ -176,17 +177,68 @@ export function useVideoGeneration() {
     queryFn: () => getVideoModels(group),
     enabled: group.length > 0,
   })
+  const { data: pricingData } = useQuery({
+    queryKey: ['pricing'],
+    queryFn: getPricing,
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const availableAspectRatios = useMemo(
-    () => getVideoAspectRatios(model),
-    [model]
+  const capabilities = useMemo(
+    () => getVideoModelCapabilities(model, modelVersion, mode),
+    [model, modelVersion, mode]
   )
-  const availableDurations = useMemo(() => getVideoDurations(model), [model])
-  const availableQualities = useMemo(() => getVideoQualities(model), [model])
-  const availableModelVersions = useMemo(
-    () => getVideoModelVersions(model),
-    [model]
-  )
+  const availableAspectRatios = capabilities.aspectRatios
+  const availableDurations = capabilities.durations
+  const availableQualities = capabilities.qualities
+  const availableModelVersions = capabilities.modelVersions
+  const availableModes = capabilities.modes
+
+  const estimatedPriceUSD = useMemo(() => {
+    if (!pricingData) return undefined
+    const pricingModel = pricingData.data.find(
+      (item) => item.model_name === model
+    )
+    const rows = pricingModel?.video_pricing?.rows
+    if (!pricingModel || !rows?.length) return undefined
+
+    const priceRow = findVideoPricingRow(rows, {
+      modelVersion,
+      resolution: quality,
+      duration,
+      mode,
+      audioEnabled,
+      hasInputImage: referenceImages.length > 0,
+    })
+    if (!priceRow) return undefined
+
+    let billingGroup = group
+    if (group === 'auto') {
+      billingGroup =
+        pricingData.auto_groups.find((autoGroup) =>
+          pricingModel.enable_groups.some(
+            (enabledGroup) =>
+              enabledGroup === 'all' || enabledGroup === autoGroup
+          )
+        ) ?? group
+    }
+    const configuredGroupRatio = pricingData.group_ratio[billingGroup]
+    const groupRatio =
+      typeof configuredGroupRatio === 'number' &&
+      Number.isFinite(configuredGroupRatio)
+        ? configuredGroupRatio
+        : 1
+    return (pricingModel.model_price ?? 0) * priceRow.multiplier * groupRatio
+  }, [
+    audioEnabled,
+    duration,
+    group,
+    mode,
+    model,
+    modelVersion,
+    pricingData,
+    quality,
+    referenceImages.length,
+  ])
 
   useEffect(() => {
     if (!groupsData?.length) return
@@ -228,16 +280,44 @@ export function useVideoGeneration() {
     ) {
       setModelVersion(availableModelVersions[0])
     }
+    if (availableModes.length > 0 && !availableModes.includes(mode)) {
+      setMode(availableModes[0])
+    }
+    if (!capabilities.supportsAudio && audioEnabled) {
+      setAudioEnabled(false)
+    }
+    if (
+      model.toLowerCase() === 'kling-video' &&
+      modelVersion === 'kling-v2-6' &&
+      audioEnabled &&
+      mode !== 'pro'
+    ) {
+      setMode('pro')
+    }
   }, [
+    audioEnabled,
     aspectRatio,
     availableAspectRatios,
     availableDurations,
+    availableModes,
     availableQualities,
     availableModelVersions,
+    capabilities.supportsAudio,
     duration,
+    mode,
+    model,
     quality,
     modelVersion,
   ])
+
+  useEffect(() => {
+    setReferenceImages((current) => {
+      if (current.length <= capabilities.maxReferenceImages) return current
+      const removed = current.slice(capabilities.maxReferenceImages)
+      removed.forEach((image) => URL.revokeObjectURL(image.previewUrl))
+      return current.slice(0, capabilities.maxReferenceImages)
+    })
+  }, [capabilities.maxReferenceImages])
 
   useEffect(() => {
     referencesRef.current = referenceImages
@@ -264,7 +344,8 @@ export function useVideoGeneration() {
 
   const addReferenceImages = useCallback(
     (files: File[]) => {
-      const availableSlots = MAX_VIDEO_REFERENCE_IMAGES - referenceImages.length
+      const availableSlots =
+        capabilities.maxReferenceImages - referenceImages.length
       const acceptedFiles = files
         .filter((file) => {
           if (!file.type.startsWith('image/')) {
@@ -280,7 +361,11 @@ export function useVideoGeneration() {
         .slice(0, availableSlots)
 
       if (files.length > availableSlots) {
-        toast.error(t('Video Gen Reference image count limit'))
+        toast.error(
+          t('Video Gen Reference image count limit', {
+            count: capabilities.maxReferenceImages,
+          })
+        )
       }
       if (!acceptedFiles.length) return
       setReferenceImages((current) => [
@@ -292,7 +377,7 @@ export function useVideoGeneration() {
         })),
       ])
     },
-    [referenceImages.length, t]
+    [capabilities.maxReferenceImages, referenceImages.length, t]
   )
 
   const removeReferenceImage = useCallback((id: string) => {
@@ -424,15 +509,24 @@ export function useVideoGeneration() {
           prompt: prompt.trim(),
           duration,
           seconds: String(duration),
-          size: resolveVideoSize(aspectRatio),
+          size: resolveVideoSize(
+            aspectRatio,
+            availableQualities.length > 0 ? quality : undefined
+          ),
+          mode: availableModes.length > 0 ? mode : undefined,
           image: imageDataUrls[0],
           images: imageDataUrls.length ? imageDataUrls : undefined,
           metadata:
-            availableQualities.length > 0 || availableModelVersions.length > 0
+            availableQualities.length > 0 ||
+            availableModelVersions.length > 0 ||
+            capabilities.supportsAudio
               ? {
                   ...(availableQualities.length > 0 && { quality }),
                   ...(availableModelVersions.length > 0 && {
                     model_version: modelVersion,
+                  }),
+                  ...(capabilities.supportsAudio && {
+                    sound: audioEnabled ? 'on' : 'off',
                   }),
                 }
               : undefined,
@@ -450,6 +544,11 @@ export function useVideoGeneration() {
           : Date.now(),
         prompt: prompt.trim(),
         model,
+        modelVersion:
+          availableModelVersions.length > 0 ? modelVersion : undefined,
+        quality: availableQualities.length > 0 ? quality : undefined,
+        mode: availableModes.length > 0 ? mode : undefined,
+        audioEnabled: capabilities.supportsAudio ? audioEnabled : undefined,
         aspectRatio,
         duration,
         status: normalizeStatus(response.status),
@@ -459,7 +558,7 @@ export function useVideoGeneration() {
         const nextHistory = [
           record,
           ...current.filter((item) => item.id !== taskId),
-        ]
+        ].slice(0, MAX_VIDEO_GENERATION_HISTORY)
         saveVideoGenerationHistory(userId, nextHistory)
         return nextHistory
       })
@@ -503,10 +602,18 @@ export function useVideoGeneration() {
   }, [
     applyTaskUpdate,
     aspectRatio,
+    availableModelVersions.length,
+    availableModes.length,
+    availableQualities.length,
+    audioEnabled,
+    capabilities.supportsAudio,
     duration,
     group,
     model,
+    modelVersion,
+    mode,
     prompt,
+    quality,
     referenceImages,
     t,
     userId,
@@ -517,8 +624,10 @@ export function useVideoGeneration() {
     setModel(record.model)
     setAspectRatio(record.aspectRatio)
     setDuration(record.duration)
-    setQuality('720p')
-    setModelVersion('c1')
+    setQuality(record.quality ?? '720p')
+    setModelVersion(record.modelVersion ?? 'c1')
+    setMode(record.mode ?? 'std')
+    setAudioEnabled(record.audioEnabled ?? false)
   }, [])
 
   const clearHistory = useCallback(() => {
@@ -544,6 +653,10 @@ export function useVideoGeneration() {
     setQuality,
     modelVersion,
     setModelVersion,
+    mode,
+    setMode,
+    audioEnabled,
+    setAudioEnabled,
     referenceImages,
     addReferenceImages,
     removeReferenceImage,
@@ -557,6 +670,10 @@ export function useVideoGeneration() {
     availableDurations,
     availableQualities,
     availableModelVersions,
+    availableModes,
+    supportsAudio: capabilities.supportsAudio,
+    maxReferenceImages: capabilities.maxReferenceImages,
+    estimatedPriceUSD,
     handleGenerate,
     reuseRecord,
     clearHistory,

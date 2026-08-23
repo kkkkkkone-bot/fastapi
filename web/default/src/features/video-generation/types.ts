@@ -39,11 +39,13 @@ export interface VideoGenerationRequest {
   duration: number
   seconds: string
   size: string
+  mode?: string
   image?: string
   images?: string[]
   metadata?: {
     quality?: string
     model_version?: string
+    sound?: 'on' | 'off'
   }
 }
 
@@ -70,6 +72,10 @@ export interface VideoGenerationRecord {
   createdAt: number
   prompt: string
   model: string
+  modelVersion?: string
+  quality?: string
+  mode?: string
+  audioEnabled?: boolean
   aspectRatio: string
   duration: number
   status: VideoTaskStatus

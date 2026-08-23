@@ -79,6 +79,7 @@ import { DynamicPricingBreakdown } from './dynamic-pricing-breakdown'
 import { ModelBillingModeBadge } from './model-billing-mode-badge'
 import { ModelDetailsApi } from './model-details-api'
 import { ModelDetailsPerformance } from './model-details-performance'
+import { VideoSpecPricing } from './video-spec-pricing'
 
 // ----------------------------------------------------------------------------
 // Local UI helpers
@@ -1176,6 +1177,12 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
               priceRate={props.priceRate}
               usdExchangeRate={props.usdExchangeRate}
               tokenUnit={props.tokenUnit}
+              showRechargePrice={showRechargePrice}
+            />
+            <VideoSpecPricing
+              model={props.model}
+              priceRate={props.priceRate}
+              usdExchangeRate={props.usdExchangeRate}
               showRechargePrice={showRechargePrice}
             />
             {isDynamic && (

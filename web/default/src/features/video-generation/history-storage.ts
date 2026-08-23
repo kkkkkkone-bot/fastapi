@@ -19,13 +19,17 @@ import { z } from 'zod'
 import type { VideoGenerationRecord } from './types'
 
 const STORAGE_VERSION = 1
-const MAX_STORED_RECORDS = 30
+export const MAX_VIDEO_GENERATION_HISTORY = 10
 
 const videoRecordSchema = z.object({
   id: z.string(),
   createdAt: z.number(),
   prompt: z.string(),
   model: z.string(),
+  modelVersion: z.string().optional(),
+  quality: z.string().optional(),
+  mode: z.string().optional(),
+  audioEnabled: z.boolean().optional(),
   aspectRatio: z.string(),
   duration: z.number(),
   status: z.enum(['queued', 'in_progress', 'completed', 'failed']),
@@ -51,7 +55,9 @@ export function loadVideoGenerationHistory(
   try {
     const value = window.localStorage.getItem(storageKey(userId))
     if (!value) return []
-    return storedHistorySchema.parse(JSON.parse(value)).records
+    return storedHistorySchema
+      .parse(JSON.parse(value))
+      .records.slice(0, MAX_VIDEO_GENERATION_HISTORY)
   } catch {
     return []
   }
@@ -68,10 +74,12 @@ export function saveVideoGenerationHistory(
       storageKey(userId),
       JSON.stringify({
         version: STORAGE_VERSION,
-        records: records.slice(0, MAX_STORED_RECORDS).map((record) => {
-          const { videoUrl: _videoUrl, ...persistedRecord } = record
-          return persistedRecord
-        }),
+        records: records
+          .slice(0, MAX_VIDEO_GENERATION_HISTORY)
+          .map((record) => {
+            const { videoUrl: _videoUrl, ...persistedRecord } = record
+            return persistedRecord
+          }),
       })
     )
   } catch {

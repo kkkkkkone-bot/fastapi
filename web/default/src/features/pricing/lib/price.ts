@@ -270,3 +270,32 @@ export function formatRequestPrice(
     abbreviate: false,
   })
 }
+
+/**
+ * Format one video specification price from the model's configurable anchor
+ * price and the backend-provided specification multiplier.
+ */
+export function formatVideoSpecPrice(
+  model: PricingModel,
+  multiplier: number,
+  groupRatio = 1,
+  showWithRecharge = false,
+  priceRate = 1,
+  usdExchangeRate = 1
+): string {
+  if (model.quota_type !== QUOTA_TYPE_VALUES.REQUEST) return '-'
+
+  let priceInUSD = (model.model_price || 0) * multiplier * groupRatio
+  priceInUSD = applyRechargeRate(
+    priceInUSD,
+    showWithRecharge,
+    priceRate,
+    usdExchangeRate
+  )
+
+  return formatCurrencyFromUSD(priceInUSD, {
+    digitsLarge: 4,
+    digitsSmall: 4,
+    abbreviate: false,
+  })
+}

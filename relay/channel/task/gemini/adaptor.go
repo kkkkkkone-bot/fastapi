@@ -93,6 +93,11 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if params.DurationSeconds == 0 && req.Duration > 0 {
 		params.DurationSeconds = req.Duration
 	}
+	if params.Resolution == "" {
+		if quality, ok := req.Metadata["quality"].(string); ok {
+			params.Resolution = quality
+		}
+	}
 	if params.Resolution == "" && req.Size != "" {
 		params.Resolution = SizeToVeoResolution(req.Size)
 	}
@@ -150,6 +155,8 @@ func (a *TaskAdaptor) GetModelList() []string {
 		"veo-3.0-fast-generate-001",
 		"veo-3.1-generate-preview",
 		"veo-3.1-fast-generate-preview",
+		"veo_3_1",
+		"veo_3_1-components",
 	}
 }
 

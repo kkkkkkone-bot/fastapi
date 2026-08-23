@@ -28,10 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { formatCurrencyFromUSD } from '@/lib/currency'
 import { cn } from '@/lib/utils'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
-import { VIDEO_ASPECT_RATIOS } from '../constants'
+import {
+  getVideoModeLabel,
+  getVideoModelVersionLabel,
+  VIDEO_ASPECT_RATIOS,
+} from '../constants'
 import type { useVideoGeneration } from '../hooks/use-video-generation'
 import { ReferenceImageUploader } from './reference-image-uploader'
 
@@ -41,16 +48,30 @@ interface GenerationWorkbenchProps {
 
 export function GenerationWorkbench({ controller }: GenerationWorkbenchProps) {
   const { t } = useTranslation()
+  // Keep the estimate reactive when the administrator changes the display unit.
+  useSystemConfigStore((state) => state.config.currency)
   const isBusy = ['submitting', 'queued', 'in_progress'].includes(
     controller.status
   )
+  const hasValidModelVersion =
+    controller.availableModelVersions.length === 0 ||
+    controller.availableModelVersions.includes(controller.modelVersion)
   const canGenerate =
     controller.prompt.trim().length > 0 &&
     controller.model.length > 0 &&
+    hasValidModelVersion &&
     !isBusy
   const ratios = VIDEO_ASPECT_RATIOS.filter((option) =>
     controller.availableAspectRatios.includes(option.value)
   )
+  const estimatedPrice =
+    controller.estimatedPriceUSD === undefined
+      ? undefined
+      : formatCurrencyFromUSD(controller.estimatedPriceUSD, {
+          digitsLarge: 4,
+          digitsSmall: 4,
+          abbreviate: false,
+        })
 
   return (
     <div className='bg-card overflow-hidden rounded-3xl border shadow-sm'>
@@ -72,11 +93,14 @@ export function GenerationWorkbench({ controller }: GenerationWorkbenchProps) {
           />
         </section>
 
-        <ReferenceImageUploader
-          images={controller.referenceImages}
-          onAdd={controller.addReferenceImages}
-          onRemove={controller.removeReferenceImage}
-        />
+        {controller.maxReferenceImages > 0 && (
+          <ReferenceImageUploader
+            images={controller.referenceImages}
+            maxImages={controller.maxReferenceImages}
+            onAdd={controller.addReferenceImages}
+            onRemove={controller.removeReferenceImage}
+          />
+        )}
 
         <section className='space-y-2.5'>
           <Label>{t('Model')}</Label>
@@ -111,49 +135,138 @@ export function GenerationWorkbench({ controller }: GenerationWorkbenchProps) {
           )}
         </section>
 
-        {controller.availableModelVersions.length > 0 && (
-          <section className='space-y-2.5'>
-            <Label>{t('Video Gen Model version')}</Label>
-            <Select
-              value={controller.modelVersion}
-              onValueChange={(value) => {
-                if (value) controller.setModelVersion(value)
-              }}
-            >
-              <SelectTrigger className='h-11 w-full rounded-xl'>
-                <SelectValue placeholder={t('Video Gen Select model version')} />
-              </SelectTrigger>
-              <SelectContent>
-                {controller.availableModelVersions.map((version) => (
-                  <SelectItem key={version} value={version}>
-                    {version}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </section>
-        )}
+        <section className='space-y-2.5'>
+          <Label>{t('Video Gen Output settings')}</Label>
+          <div className='grid gap-3 sm:grid-cols-3'>
+            {controller.availableModelVersions.length > 0 && (
+              <div className='space-y-1.5'>
+                <Label className='text-muted-foreground text-xs'>
+                  {t('Video Gen Model version')}
+                </Label>
+                <Select
+                  value={controller.modelVersion}
+                  onValueChange={(value) => {
+                    if (value) controller.setModelVersion(value)
+                  }}
+                >
+                  <SelectTrigger className='h-10 w-full rounded-xl'>
+                    <SelectValue
+                      placeholder={t('Video Gen Select model version')}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {controller.availableModelVersions.map((version) => (
+                      <SelectItem key={version} value={version}>
+                        {getVideoModelVersionLabel(version)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-        {controller.availableQualities.length > 0 && (
-          <section className='space-y-2.5'>
-            <Label>{t('Video Gen Quality')}</Label>
-            <Select
-              value={controller.quality}
-              onValueChange={(value) => {
-                if (value) controller.setQuality(value)
-              }}
-            >
-              <SelectTrigger className='h-11 w-full rounded-xl'>
-                <SelectValue placeholder={t('Video Gen Select quality')} />
-              </SelectTrigger>
-              <SelectContent>
-                {controller.availableQualities.map((q) => (
-                  <SelectItem key={q} value={q}>
-                    {q}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {controller.availableQualities.length > 1 && (
+              <div className='space-y-1.5'>
+                <Label className='text-muted-foreground text-xs'>
+                  {t('Video Gen Quality')}
+                </Label>
+                <Select
+                  value={controller.quality}
+                  onValueChange={(value) => {
+                    if (value) controller.setQuality(value)
+                  }}
+                >
+                  <SelectTrigger className='h-10 w-full rounded-xl'>
+                    <SelectValue placeholder={t('Video Gen Select quality')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {controller.availableQualities.map((q) => (
+                      <SelectItem key={q} value={q}>
+                        {q}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className='space-y-1.5'>
+              <Label className='text-muted-foreground text-xs'>
+                {t('Video Gen Duration')}
+              </Label>
+              <Select
+                value={String(controller.duration)}
+                onValueChange={(value) => {
+                  if (value) controller.setDuration(Number(value))
+                }}
+              >
+                <SelectTrigger className='h-10 w-full rounded-xl'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {controller.availableDurations.map((seconds) => (
+                    <SelectItem key={seconds} value={String(seconds)}>
+                      {t('Video Gen Seconds', { count: seconds })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {controller.availableModes.length > 0 && (
+              <div className='space-y-1.5'>
+                <Label className='text-muted-foreground text-xs'>
+                  {t('Video Gen Mode')}
+                </Label>
+                <Select
+                  value={controller.mode}
+                  onValueChange={(value) => {
+                    if (value) controller.setMode(value)
+                  }}
+                >
+                  <SelectTrigger className='h-10 w-full rounded-xl'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {controller.availableModes.map((mode) => (
+                      <SelectItem
+                        key={mode}
+                        value={mode}
+                        disabled={
+                          controller.model === 'kling-video' &&
+                          controller.modelVersion === 'kling-v2-6' &&
+                          controller.audioEnabled &&
+                          mode === 'std'
+                        }
+                      >
+                        {t(`Video Gen Mode ${getVideoModeLabel(mode)}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {controller.supportsAudio && (
+          <section className='bg-muted/25 flex items-center justify-between gap-4 rounded-2xl border px-4 py-3'>
+            <div>
+              <Label htmlFor='video-generation-audio'>
+                {t('Video Gen Generate audio')}
+              </Label>
+              <p className='text-muted-foreground mt-0.5 text-xs leading-5'>
+                {controller.model === 'kling-video' &&
+                controller.modelVersion === 'kling-v2-6'
+                  ? t('Video Gen Kling audio pro note')
+                  : t('Video Gen Audio billing note')}
+              </p>
+            </div>
+            <Switch
+              id='video-generation-audio'
+              checked={controller.audioEnabled}
+              onCheckedChange={controller.setAudioEnabled}
+            />
           </section>
         )}
 
@@ -186,28 +299,6 @@ export function GenerationWorkbench({ controller }: GenerationWorkbenchProps) {
             })}
           </div>
         </section>
-
-        <section className='space-y-2.5'>
-          <Label>{t('Video Gen Duration')}</Label>
-          <div className='flex flex-wrap gap-2'>
-            {controller.availableDurations.map((seconds) => (
-              <button
-                key={seconds}
-                type='button'
-                aria-pressed={controller.duration === seconds}
-                onClick={() => controller.setDuration(seconds)}
-                className={cn(
-                  'min-w-16 rounded-lg border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors outline-none',
-                  'hover:border-primary/40 hover:text-foreground focus-visible:ring-primary/15 focus-visible:ring-3',
-                  controller.duration === seconds &&
-                    'border-primary bg-primary/5 text-primary'
-                )}
-              >
-                {t('Video Gen Seconds', { count: seconds })}
-              </button>
-            ))}
-          </div>
-        </section>
       </div>
 
       <div className='bg-muted/20 flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6'>
@@ -219,15 +310,30 @@ export function GenerationWorkbench({ controller }: GenerationWorkbenchProps) {
             {t('Video Gen Billing and polling note')}
           </p>
         </div>
-        <Button
-          size='lg'
-          className='h-11 min-w-40 rounded-xl px-5 shadow-sm'
-          disabled={!canGenerate}
-          onClick={controller.handleGenerate}
-        >
-          {isBusy ? <Loader2 className='animate-spin' /> : <Sparkles />}
-          {isBusy ? t('Video Gen Processing') : t('Video Gen Generate')}
-        </Button>
+        <div className='flex items-center justify-end gap-3'>
+          {estimatedPrice && (
+            <div
+              className='border-primary/15 bg-primary/5 flex h-11 items-center gap-2 rounded-xl border px-3'
+              aria-live='polite'
+            >
+              <span className='text-muted-foreground text-xs font-medium'>
+                {t('Video Gen Estimated this request')}
+              </span>
+              <span className='text-primary font-mono text-sm font-semibold tabular-nums'>
+                {estimatedPrice}
+              </span>
+            </div>
+          )}
+          <Button
+            size='lg'
+            className='h-11 min-w-40 rounded-xl px-5 shadow-sm'
+            disabled={!canGenerate}
+            onClick={controller.handleGenerate}
+          >
+            {isBusy ? <Loader2 className='animate-spin' /> : <Sparkles />}
+            {isBusy ? t('Video Gen Processing') : t('Video Gen Generate')}
+          </Button>
+        </div>
       </div>
     </div>
   )

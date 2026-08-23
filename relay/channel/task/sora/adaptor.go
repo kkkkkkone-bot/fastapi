@@ -18,6 +18,7 @@ import (
 	taskcommon "github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
+	video_pricing "github.com/QuantumNous/new-api/setting/video_pricing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -38,9 +39,19 @@ type ImageURL struct {
 	URL string `json:"url"`
 }
 
+type grokVideoRequest struct {
+	Model       string    `json:"model"`
+	Prompt      string    `json:"prompt"`
+	Resolution  string    `json:"resolution"`
+	AspectRatio string    `json:"aspect_ratio"`
+	Duration    int       `json:"duration"`
+	Image       *ImageURL `json:"image,omitempty"`
+}
+
 type responseTask struct {
 	ID                 string `json:"id"`
 	TaskID             string `json:"task_id,omitempty"` //兼容旧接口
+	RequestID          string `json:"request_id,omitempty"`
 	Object             string `json:"object"`
 	Model              string `json:"model"`
 	Status             string `json:"status"`
@@ -55,6 +66,10 @@ type responseTask struct {
 		Message string `json:"message"`
 		Code    string `json:"code"`
 	} `json:"error,omitempty"`
+	Video *struct {
+		URL      string `json:"url"`
+		Duration int    `json:"duration"`
+	} `json:"video,omitempty"`
 }
 
 // ============================
@@ -91,7 +106,28 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if info.Action == constant.TaskActionRemix {
 		return validateRemixRequest(c)
 	}
-	return relaycommon.ValidateMultipartDirect(c, info)
+	if taskErr = relaycommon.ValidateMultipartDirect(c, info); taskErr != nil {
+		return taskErr
+	}
+	if !isGrokVideoModel(info.OriginModelName) {
+		return nil
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	seconds := taskDuration(req, 1)
+	if seconds < 1 || seconds > 15 {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("grok video duration must be between 1 and 15 seconds"), "invalid_request", http.StatusBadRequest)
+	}
+	resolution := metadataString(req.Metadata, "quality", "480p")
+	if resolution != "480p" && resolution != "720p" {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported grok video resolution: %s", resolution), "invalid_request", http.StatusBadRequest)
+	}
+	if len(req.Images) > 1 {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("grok video accepts at most one input image"), "invalid_request", http.StatusBadRequest)
+	}
+	return nil
 }
 
 // EstimateBilling 根据用户请求的 seconds 和 size 计算 OtherRatios。
@@ -104,6 +140,20 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return nil
+	}
+	if isGrokVideoModel(info.OriginModelName) || isGrokVideoModel(info.UpstreamModelName) {
+		multiplier, err := video_pricing.EstimateMultiplier(
+			video_pricing.GrokImagineVideoModel,
+			video_pricing.Options{
+				Resolution: metadataString(req.Metadata, "quality", "480p"),
+				Duration:   taskDuration(req, 1),
+				InputImage: req.HasImage(),
+			},
+		)
+		if err != nil {
+			return nil
+		}
+		return map[string]float64{"request_cost": multiplier}
 	}
 
 	seconds, _ := strconv.Atoi(req.Seconds)
@@ -133,6 +183,9 @@ func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, erro
 	if info.Action == constant.TaskActionRemix {
 		return fmt.Sprintf("%s/v1/videos/%s/remix", a.baseURL, info.OriginTaskID), nil
 	}
+	if isGrokVideoModel(info.OriginModelName) || isGrokVideoModel(info.UpstreamModelName) {
+		return fmt.Sprintf("%s/v1/videos/generations", a.baseURL), nil
+	}
 	return fmt.Sprintf("%s/v1/videos", a.baseURL), nil
 }
 
@@ -144,6 +197,29 @@ func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info
 }
 
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
+	if isGrokVideoModel(info.OriginModelName) || isGrokVideoModel(info.UpstreamModelName) {
+		req, err := relaycommon.GetTaskRequest(c)
+		if err != nil {
+			return nil, err
+		}
+		body := grokVideoRequest{
+			Model:       info.UpstreamModelName,
+			Prompt:      req.Prompt,
+			Resolution:  metadataString(req.Metadata, "quality", "480p"),
+			AspectRatio: resolveAspectRatio(req.Size),
+			Duration:    taskDuration(req, 1),
+		}
+		if len(req.Images) > 0 {
+			body.Image = &ImageURL{URL: req.Images[0]}
+		}
+		data, err := common.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		c.Request.Header.Set("Content-Type", "application/json")
+		return bytes.NewReader(data), nil
+	}
+
 	storage, err := common.GetBodyStorage(c)
 	if err != nil {
 		return nil, errors.Wrap(err, "get_request_body_failed")
@@ -251,6 +327,9 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		upstreamID = dResp.TaskID
 	}
 	if upstreamID == "" {
+		upstreamID = dResp.RequestID
+	}
+	if upstreamID == "" {
 		taskErr = service.TaskErrorWrapper(fmt.Errorf("task_id is empty"), "invalid_response", http.StatusInternalServerError)
 		return
 	}
@@ -258,6 +337,7 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	// 使用公开 task_xxxx ID 返回给客户端
 	dResp.ID = info.PublicTaskID
 	dResp.TaskID = info.PublicTaskID
+	dResp.RequestID = info.PublicTaskID
 	c.JSON(http.StatusOK, dResp)
 	return upstreamID, responseBody, nil
 }
@@ -308,10 +388,12 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		taskResult.Status = model.TaskStatusQueued
 	case "processing", "in_progress":
 		taskResult.Status = model.TaskStatusInProgress
-	case "completed":
+	case "completed", "done":
 		taskResult.Status = model.TaskStatusSuccess
-		// Url intentionally left empty — the caller constructs the proxy URL using the public task ID
-	case "failed", "cancelled":
+		if resTask.Video != nil {
+			taskResult.Url = resTask.Video.URL
+		}
+	case "failed", "cancelled", "expired":
 		taskResult.Status = model.TaskStatusFailure
 		if resTask.Error != nil {
 			taskResult.Reason = resTask.Error.Message
@@ -328,10 +410,74 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(task *model.Task) ([]byte, error) {
+	if isGrokVideoModel(task.Properties.OriginModelName) {
+		var result responseTask
+		if err := common.Unmarshal(task.Data, &result); err != nil {
+			return nil, errors.Wrap(err, "unmarshal grok video result failed")
+		}
+		openAIVideo := dto.NewOpenAIVideo()
+		openAIVideo.ID = task.TaskID
+		openAIVideo.TaskID = task.TaskID
+		openAIVideo.Model = task.Properties.OriginModelName
+		openAIVideo.Status = task.Status.ToVideoStatus()
+		openAIVideo.SetProgressStr(task.Progress)
+		openAIVideo.CreatedAt = task.CreatedAt
+		openAIVideo.CompletedAt = task.UpdatedAt
+		videoURL := task.GetResultURL()
+		if result.Video != nil {
+			if result.Video.URL != "" {
+				videoURL = result.Video.URL
+			}
+			if result.Video.Duration > 0 {
+				openAIVideo.Seconds = strconv.Itoa(result.Video.Duration)
+			}
+		}
+		if videoURL != "" {
+			openAIVideo.SetMetadata("url", videoURL)
+		}
+		if result.Error != nil {
+			openAIVideo.Error = &dto.OpenAIVideoError{Message: result.Error.Message, Code: result.Error.Code}
+		}
+		return common.Marshal(openAIVideo)
+	}
+
 	data := task.Data
 	var err error
 	if data, err = sjson.SetBytes(data, "id", task.TaskID); err != nil {
 		return nil, errors.Wrap(err, "set id failed")
 	}
 	return data, nil
+}
+
+func isGrokVideoModel(modelName string) bool {
+	return strings.EqualFold(strings.TrimSpace(modelName), "grok-imagine-video-1.5-preview")
+}
+
+func metadataString(metadata map[string]any, key, fallback string) string {
+	if value, ok := metadata[key].(string); ok && strings.TrimSpace(value) != "" {
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+	return fallback
+}
+
+func taskDuration(req relaycommon.TaskSubmitReq, fallback int) int {
+	seconds, _ := strconv.Atoi(req.Seconds)
+	if seconds <= 0 {
+		seconds = req.Duration
+	}
+	if seconds <= 0 {
+		seconds = fallback
+	}
+	return seconds
+}
+
+func resolveAspectRatio(size string) string {
+	switch strings.ToLower(strings.TrimSpace(size)) {
+	case "1:1", "1024x1024":
+		return "1:1"
+	case "9:16", "720x1280", "1080x1920":
+		return "9:16"
+	default:
+		return "16:9"
+	}
 }

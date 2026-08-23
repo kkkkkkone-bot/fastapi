@@ -34,6 +34,8 @@ var (
 	VideoGenerationModels = []string{
 		"sora-",
 		"veo-",
+		"veo_",
+		"grok-imagine-video",
 		"kling-",
 		"vidu",
 		"pixverse",
