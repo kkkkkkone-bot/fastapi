@@ -44,7 +44,7 @@ func TestGetModelRequestReadsPlaygroundVideoSubmit(t *testing.T) {
 	context.Request = httptest.NewRequest(
 		http.MethodPost,
 		"/pg/videos",
-		bytes.NewBufferString(`{"model":"sora-2","prompt":"ocean at dusk"}`),
+		bytes.NewBufferString(`{"model":"sora-2","group":"6-视频通用","prompt":"ocean at dusk"}`),
 	)
 	context.Request.Header.Set("Content-Type", "application/json")
 
@@ -52,6 +52,7 @@ func TestGetModelRequestReadsPlaygroundVideoSubmit(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, shouldSelectChannel)
 	require.Equal(t, "sora-2", request.Model)
+	require.Equal(t, "6-视频通用", request.Group)
 	require.Equal(t, constant.RelayModeVideoSubmit, context.GetInt("relay_mode"))
 }
 

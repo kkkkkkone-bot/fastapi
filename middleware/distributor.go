@@ -99,7 +99,8 @@ func Distribute() func(c *gin.Context) {
 						usingGroup = playgroundRequest.Group
 						common.SetContextKey(c, constant.ContextKeyUsingGroup, usingGroup)
 					}
-				} else if strings.HasPrefix(c.Request.URL.Path, "/pg/images/") && modelRequest.Group != "" {
+				} else if (strings.HasPrefix(c.Request.URL.Path, "/pg/images/") ||
+					strings.HasPrefix(c.Request.URL.Path, "/pg/videos")) && modelRequest.Group != "" {
 					if !service.GroupInUserUsableGroups(usingGroup, modelRequest.Group) && modelRequest.Group != usingGroup {
 						abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
 						return
@@ -318,6 +319,7 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 			}
 			if req != nil {
 				modelRequest.Model = req.Model
+				modelRequest.Group = req.Group
 			}
 		} else if c.Request.Method == http.MethodGet {
 			relayMode = relayconstant.RelayModeVideoFetchByID

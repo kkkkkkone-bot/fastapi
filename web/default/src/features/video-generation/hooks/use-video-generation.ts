@@ -61,7 +61,7 @@ type WorkspaceStatus =
   | 'success'
   | 'error'
 
-const DEFAULT_GROUP = 'default'
+const DEFAULT_GROUP = '6-视频通用'
 
 function createLocalId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`

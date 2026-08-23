@@ -44,7 +44,7 @@ import type {
 } from '../types'
 
 export const DEFAULT_MODEL = 'gpt-image-1'
-export const DEFAULT_GROUP = 'default'
+export const DEFAULT_GROUP = '7-图片通用'
 
 function createRecordId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
