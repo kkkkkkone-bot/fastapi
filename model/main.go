@@ -322,7 +322,7 @@ func migrateDB() error {
 			return err
 		}
 	}
-	return nil
+	return EnsureChannelModelMetadata(DB)
 }
 
 func migrateDBFast() error {

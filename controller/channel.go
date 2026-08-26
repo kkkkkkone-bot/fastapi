@@ -220,6 +220,14 @@ func buildFetchModelsHeaders(channel *model.Channel, key string) (http.Header, e
 	return headers, nil
 }
 
+func ensureFetchedModelMetadata(c *gin.Context, modelNames []string) bool {
+	if err := model.EnsureModelMetadata(nil, modelNames); err != nil {
+		common.ApiError(c, err)
+		return false
+	}
+	return true
+}
+
 func FetchUpstreamModels(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -239,6 +247,9 @@ func FetchUpstreamModels(c *gin.Context) {
 			"success": false,
 			"message": fmt.Sprintf("获取模型列表失败: %s", err.Error()),
 		})
+		return
+	}
+	if !ensureFetchedModelMetadata(c, ids) {
 		return
 	}
 
@@ -1194,6 +1205,9 @@ func FetchModels(c *gin.Context) {
 		for _, modelInfo := range models {
 			names = append(names, modelInfo.Name)
 		}
+		if !ensureFetchedModelMetadata(c, names) {
+			return
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -1209,6 +1223,9 @@ func FetchModels(c *gin.Context) {
 				"success": false,
 				"message": fmt.Sprintf("获取Gemini模型失败: %s", err.Error()),
 			})
+			return
+		}
+		if !ensureFetchedModelMetadata(c, models) {
 			return
 		}
 
@@ -1268,6 +1285,9 @@ func FetchModels(c *gin.Context) {
 	var models []string
 	for _, model := range result.Data {
 		models = append(models, model.ID)
+	}
+	if !ensureFetchedModelMetadata(c, models) {
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{

@@ -467,9 +467,10 @@ export function ModelMutateDrawer({
                 values.audioRatio ||
                 values.audioCompletionRatio))
 
-          // Always process system settings updates if we have modelSettings
-          // This ensures we can remove stale entries even when clearing all pricing fields
-          if (modelSettings) {
+          // Creating metadata for a model that already has pricing must not
+          // clear that pricing when the pricing fields are left blank.
+          const shouldUpdatePricingSettings = isEditing || hasRatioConfig
+          if (modelSettings && shouldUpdatePricingSettings) {
             // Read existing configurations
             const priceMap = safeJsonParse<Record<string, number>>(
               modelSettings.ModelPrice,
@@ -529,7 +530,8 @@ export function ModelMutateDrawer({
             // Only add new entries if user provided new configuration
             if (hasRatioConfig) {
               if (
-                (pricingMode === 'per-request' || pricingMode === 'per-second') &&
+                (pricingMode === 'per-request' ||
+                  pricingMode === 'per-second') &&
                 values.price &&
                 values.price !== ''
               ) {
@@ -995,7 +997,9 @@ export function ModelMutateDrawer({
                       <FormControl>
                         <Input
                           type='text'
-                          placeholder={pricingMode === 'per-second' ? '0.65' : '0.01'}
+                          placeholder={
+                            pricingMode === 'per-second' ? '0.65' : '0.01'
+                          }
                           {...field}
                           onChange={(e) => {
                             const value = e.target.value

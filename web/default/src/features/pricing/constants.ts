@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type TFunction } from 'i18next'
+import type { TFunction } from 'i18next'
 
 import type { TokenUnit } from './types'
 
@@ -32,6 +32,9 @@ export const SORT_OPTIONS = {
 } as const
 
 export type SortOption = (typeof SORT_OPTIONS)[keyof typeof SORT_OPTIONS]
+
+/** Default sort option for pricing models */
+export const DEFAULT_SORT_OPTION: SortOption = SORT_OPTIONS.PRICE_LOW
 
 export function getSortLabels(t: TFunction): Record<SortOption, string> {
   return {

@@ -196,6 +196,14 @@ func filterAbilitiesByRequestPathAndModel(abilities []Ability, requestPath strin
 func (channel *Channel) AddAbilities(tx *gorm.DB) error {
 	models_ := strings.Split(channel.Models, ",")
 	groups_ := strings.Split(channel.Group, ",")
+	useDB := DB
+	if tx != nil {
+		useDB = tx
+	}
+	if err := EnsureModelMetadata(useDB, models_); err != nil {
+		return err
+	}
+
 	abilitySet := make(map[string]struct{})
 	abilities := make([]Ability, 0, len(models_))
 	for _, model := range models_ {
@@ -219,11 +227,6 @@ func (channel *Channel) AddAbilities(tx *gorm.DB) error {
 	}
 	if len(abilities) == 0 {
 		return nil
-	}
-	// choose DB or provided tx
-	useDB := DB
-	if tx != nil {
-		useDB = tx
 	}
 	for _, chunk := range lo.Chunk(abilities, 50) {
 		err := useDB.Clauses(clause.OnConflict{DoNothing: true}).Create(&chunk).Error
@@ -259,6 +262,12 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 	// First delete all abilities of this channel
 	err := tx.Where("channel_id = ?", channel.Id).Delete(&Ability{}).Error
 	if err != nil {
+		if isNewTx {
+			tx.Rollback()
+		}
+		return err
+	}
+	if err = EnsureModelMetadata(tx, channel.GetModels()); err != nil {
 		if isNewTx {
 			tx.Rollback()
 		}

@@ -7,6 +7,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -42,6 +43,74 @@ type Model struct {
 
 	MatchedModels []string `json:"matched_models,omitempty" gorm:"-"`
 	MatchedCount  int      `json:"matched_count,omitempty" gorm:"-"`
+}
+
+// EnsureModelMetadata creates enabled base metadata for model names that do not
+// have an exact metadata record yet. Existing metadata and pricing settings are
+// left untouched.
+func EnsureModelMetadata(db *gorm.DB, modelNames []string) error {
+	modelNames = normalizeLookupValues(modelNames)
+	if len(modelNames) == 0 {
+		return nil
+	}
+	if db == nil {
+		db = DB
+	}
+
+	var existing []string
+	if err := db.Model(&Model{}).
+		Where("model_name IN ?", modelNames).
+		Pluck("model_name", &existing).Error; err != nil {
+		return err
+	}
+
+	existingSet := make(map[string]struct{}, len(existing))
+	for _, name := range existing {
+		existingSet[name] = struct{}{}
+	}
+
+	now := common.GetTimestamp()
+	missing := make([]Model, 0, len(modelNames)-len(existing))
+	for _, name := range modelNames {
+		if _, ok := existingSet[name]; ok {
+			continue
+		}
+		missing = append(missing, Model{
+			ModelName:    name,
+			Status:       1,
+			SyncOfficial: 1,
+			CreatedTime:  now,
+			UpdatedTime:  now,
+		})
+	}
+
+	for start := 0; start < len(missing); start += 100 {
+		end := min(start+100, len(missing))
+		if err := db.Clauses(clause.OnConflict{DoNothing: true}).
+			Create(missing[start:end]).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EnsureChannelModelMetadata backfills metadata for models already configured
+// on channels. New channel writes keep the same invariant through abilities.
+func EnsureChannelModelMetadata(db *gorm.DB) error {
+	if db == nil {
+		db = DB
+	}
+
+	var configuredModelLists []string
+	if err := db.Model(&Channel{}).Pluck("models", &configuredModelLists).Error; err != nil {
+		return err
+	}
+
+	modelNames := make([]string, 0)
+	for _, configuredModels := range configuredModelLists {
+		modelNames = append(modelNames, strings.Split(configuredModels, ",")...)
+	}
+	return EnsureModelMetadata(db, modelNames)
 }
 
 func (mi *Model) Insert() error {
