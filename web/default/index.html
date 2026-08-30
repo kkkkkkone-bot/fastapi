@@ -1,25 +1,167 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="google" content="notranslate" />
 
-    <!-- Primary Meta Tags -->
-    <title>New API</title>
-    <meta name="title" content="New API" />
+    <!-- Primary Meta Tags; New API attribution is intentionally preserved. -->
+    <!-- SEO_TITLE_START -->
+    <title>Fast API｜Claude、GPT、Gemini API 中转与统一接口｜New API</title>
+    <!-- SEO_TITLE_END -->
+    <!-- SEO_DESCRIPTION_START -->
     <meta
       name="description"
-      content="Unified AI API gateway and admin dashboard."
+      content="Fast API 为开发者提供 Claude、OpenAI GPT、Gemini 等模型的统一 API 接入，兼容 OpenAI、Anthropic 与 Gemini 协议，支持 API Key 管理、用量日志和透明计费。"
     />
+    <!-- SEO_DESCRIPTION_END -->
+    <!-- SEO_HEAD -->
 
     <meta name="theme-color" content="#fff" />
+    <style id="seo-fallback-styles">
+      .seo-fallback {
+        min-height: 100vh;
+        box-sizing: border-box;
+        padding: 72px 24px;
+        color: #182033;
+        background:
+          radial-gradient(circle at 18% 12%, #dbeafe 0, transparent 36%),
+          radial-gradient(circle at 82% 18%, #ede9fe 0, transparent 34%),
+          #ffffff;
+        font-family:
+          Public Sans,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+      .seo-fallback__inner {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+      }
+      .seo-fallback__eyebrow {
+        color: #2563eb;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      .seo-fallback h1 {
+        max-width: 780px;
+        margin: 18px 0;
+        font-size: clamp(36px, 6vw, 64px);
+        line-height: 1.08;
+        letter-spacing: -0.04em;
+      }
+      .seo-fallback__lead {
+        max-width: 760px;
+        color: #526079;
+        font-size: 18px;
+        line-height: 1.75;
+      }
+      .seo-fallback__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 30px 0 50px;
+      }
+      .seo-fallback__actions a {
+        padding: 12px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        color: #172033;
+        text-decoration: none;
+        font-weight: 700;
+        background: rgb(255 255 255 / 78%);
+      }
+      .seo-fallback__actions a:first-child {
+        color: #ffffff;
+        border-color: #2563eb;
+        background: #2563eb;
+      }
+      .seo-fallback__grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .seo-fallback__card {
+        padding: 24px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: rgb(255 255 255 / 76%);
+      }
+      .seo-fallback__card h2 {
+        margin: 0 0 10px;
+        font-size: 20px;
+      }
+      .seo-fallback__card p {
+        margin: 0;
+        color: #5f6c83;
+        line-height: 1.7;
+      }
+      .seo-fallback__attribution {
+        margin-top: 36px;
+        color: #64748b;
+        font-size: 13px;
+      }
+      @media (max-width: 760px) {
+        .seo-fallback {
+          padding-top: 48px;
+        }
+        .seo-fallback__grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
     <!--umami-->
     <!--Google Analytics-->
   </head>
 
   <body>
-    <div id="root" translate="no" class="notranslate"></div>
+    <div id="root" translate="no" class="notranslate">
+      <main id="seo-fallback" class="seo-fallback">
+        <div class="seo-fallback__inner">
+          <div class="seo-fallback__eyebrow">统一 AI API 网关</div>
+          <h1>一个 API Key 接入 Claude、GPT 与 Gemini</h1>
+          <p class="seo-fallback__lead">
+            Fast API 为开发者和 AI 编程工具提供统一的大模型 API
+            接入。使用一个地址管理 Claude、OpenAI GPT、Gemini 等模型，兼容
+            OpenAI、Anthropic 与 Gemini 协议，并集中查看 API
+            Key、调用日志、余额和计费。
+          </p>
+          <nav class="seo-fallback__actions" aria-label="快速入口">
+            <a href="/sign-up">创建 API Key</a>
+            <a href="/pricing/">查看模型与价格</a>
+          </nav>
+          <section class="seo-fallback__grid" aria-label="Fast API 核心能力">
+            <article class="seo-fallback__card">
+              <h2>多模型统一接入</h2>
+              <p>
+                通过统一端点调用 Claude、GPT、Gemini
+                及其他可用模型，减少重复配置与切换成本。
+              </p>
+            </article>
+            <article class="seo-fallback__card">
+              <h2>兼容主流 API 协议</h2>
+              <p>
+                兼容 OpenAI、Anthropic 与 Gemini 请求方式，便于接入 Claude
+                Code、Codex 和常用 SDK。
+              </p>
+            </article>
+            <article class="seo-fallback__card">
+              <h2>用量与计费透明</h2>
+              <p>
+                在统一控制台管理密钥、查看调用日志、模型价格和实际用量，快速定位接口问题。
+              </p>
+            </article>
+          </section>
+          <p class="seo-fallback__attribution">
+            Fast API 基于 New API 构建；New API 与 QuantumNous
+            归属信息完整保留。
+          </p>
+        </div>
+      </main>
+    </div>
   </body>
 </html>
