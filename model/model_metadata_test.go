@@ -52,6 +52,19 @@ func TestEnsureModelMetadataCreatesOnlyMissingExactModels(t *testing.T) {
 	assert.Equal(t, 1, models[1].SyncOfficial)
 }
 
+func TestEnsureModelMetadataAllowsMoreExistingRowsThanRequestedModels(t *testing.T) {
+	resetModelMetadataTestTables(t)
+
+	require.NoError(t, DB.Create(&[]Model{
+		{ModelName: "existing-one", Status: 1, SyncOfficial: 1},
+		{ModelName: "unconfigured-historical-model", Status: 1, SyncOfficial: 1},
+	}).Error)
+
+	// A model metadata table may retain old rows after channels change. This
+	// must not make startup migration panic while backfilling active channels.
+	require.NoError(t, EnsureModelMetadata(DB, []string{"existing-one"}))
+}
+
 func TestChannelAbilityUpdatesCreateMetadataWithoutChangingPrice(t *testing.T) {
 	resetModelMetadataTestTables(t)
 

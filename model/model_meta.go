@@ -70,7 +70,14 @@ func EnsureModelMetadata(db *gorm.DB, modelNames []string) error {
 	}
 
 	now := common.GetTimestamp()
-	missing := make([]Model, 0, len(modelNames)-len(existing))
+	// The metadata table can legitimately contain models that are no longer
+	// configured on any channel. In that case len(existing) is larger than
+	// len(modelNames); do not use a negative value as a slice capacity.
+	missingCapacity := len(modelNames) - len(existing)
+	if missingCapacity < 0 {
+		missingCapacity = 0
+	}
+	missing := make([]Model, 0, missingCapacity)
 	for _, name := range modelNames {
 		if _, ok := existingSet[name]; ok {
 			continue
