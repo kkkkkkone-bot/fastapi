@@ -176,13 +176,32 @@ func TestApplyProviderHeaderDefaults(t *testing.T) {
 		require.Equal(t, "custom-agent", headers.Get("User-Agent"))
 	})
 
-	t.Run("nbility strips browser origin headers", func(t *testing.T) {
+	t.Run("all providers strip origin headers by default", func(t *testing.T) {
 		headers := make(http.Header)
 		headers.Set("Origin", "https://www.fastapi.ltd")
 		headers.Set("Referer", "https://www.fastapi.ltd/console")
-		ApplyProviderHeaderDefaults(headers, "https://api.nbility.ai/v1/models")
+		ApplyProviderHeaderDefaults(headers, "https://unrelated-provider.example/v1/models")
 		require.Empty(t, headers.Get("Origin"))
 		require.Empty(t, headers.Get("Referer"))
+	})
+
+	t.Run("explicit provider opt in preserves a fixed origin", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set("Origin", "https://provider.example")
+		headers.Set("Referer", "https://provider.example/console")
+		headers.Set(allowOriginOverrideHeader, "true")
+		ApplyProviderHeaderDefaults(headers, "https://provider.example/v1/models")
+		require.Equal(t, "https://provider.example", headers.Get("Origin"))
+		require.Equal(t, "https://provider.example/console", headers.Get("Referer"))
+		require.Empty(t, headers.Get(allowOriginOverrideHeader))
+	})
+
+	t.Run("nbility always rejects browser origin headers", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set("Origin", "https://www.fastapi.ltd")
+		headers.Set(allowOriginOverrideHeader, "true")
+		ApplyProviderHeaderDefaults(headers, "https://api.nbility.ai/v1/models")
+		require.Empty(t, headers.Get("Origin"))
 	})
 }
 

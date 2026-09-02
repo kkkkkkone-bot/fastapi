@@ -102,6 +102,12 @@ var passthroughSkipHeaderNamesLower = map[string]struct{}{
 
 const micuExternalBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:149.0) Gecko/20100101 Firefox/149.0"
 
+// allowOriginOverrideHeader is a channel-only control flag. Origin and Referer
+// are stripped from every upstream request by default; a provider that
+// explicitly requires a fixed browser origin must opt in with this header.
+// The control flag itself is never sent upstream.
+const allowOriginOverrideHeader = "X-NewAPI-Allow-Origin-Override"
+
 // ApplyProviderHeaderDefaults applies documented provider compatibility rules
 // after channel header overrides have been resolved. It is intentionally keyed
 // by the final upstream host so it also covers custom OpenAI-compatible
@@ -109,6 +115,18 @@ const micuExternalBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; 
 func ApplyProviderHeaderDefaults(headers http.Header, target string) {
 	if headers == nil {
 		return
+	}
+
+	allowOriginOverride := strings.EqualFold(
+		strings.TrimSpace(headers.Get(allowOriginOverrideHeader)), "true",
+	)
+	headers.Del(allowOriginOverrideHeader)
+	if !allowOriginOverride {
+		// Origin/Referer are browser metadata, not normal server-to-server API
+		// headers. In particular, stale channel overrides easily cause 403
+		// Forbidden origin responses. Keep them only after explicit opt-in.
+		headers.Del("Origin")
+		headers.Del("Referer")
 	}
 
 	parsed, err := url.Parse(target)
