@@ -493,19 +493,22 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		if err = common.Unmarshal(responseBody, &errorResult); err == nil {
 			openaiError := errorResult.TryToOpenAIError()
 			if openaiError != nil {
-				// 返回规范的 OpenAI 错误格式，提取错误信息，判断错误是否为任务失败
-				if openaiError.Code == "429" {
-					// 429 错误通常表示请求过多或速率限制，暂时不认为是任务失败，保持原状态等待下一轮轮询
-					return nil
-				}
-
-				// 其他错误认为是任务失败，记录错误信息并更新任务状态
-				taskResult = relaycommon.FailTaskInfo("upstream returned error")
+				// A polling error is not proof that the asynchronous task failed.
+				// In particular, some upstreams return a temporary/unknown envelope
+				// after the task has already completed. Keep the task pending and poll
+				// again; only an explicit terminal status may trigger a refund.
+				logger.LogWarn(ctx, fmt.Sprintf("Task %s returned an upstream polling error without task status; keep pending: %s", taskId, openaiError.Message))
+				return nil
 			} else {
-				// unknown error format, log original response
-				logger.LogError(ctx, fmt.Sprintf("Task %s returned empty status with unrecognized error format, response: %s", taskId, string(responseBody)))
-				taskResult = relaycommon.FailTaskInfo("upstream returned unrecognized message")
+				// Unknown envelopes must never be converted into task failure. Doing
+				// so can refund a user even when the upstream already generated the
+				// video successfully.
+				logger.LogWarn(ctx, fmt.Sprintf("Task %s returned empty status with an unrecognized polling response; keep pending: %s", taskId, string(responseBody)))
+				return nil
 			}
+		} else {
+			logger.LogWarn(ctx, fmt.Sprintf("Task %s returned non-JSON polling response without status; keep pending", taskId))
+			return nil
 		}
 	}
 

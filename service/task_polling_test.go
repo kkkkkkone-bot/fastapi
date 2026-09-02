@@ -27,6 +27,8 @@ type taskPollingFetchAdaptor struct {
 	blockStarted chan struct{}
 	releaseBlock chan struct{}
 	blockOnce    sync.Once
+	responseBody []byte
+	parseResult  *relaycommon.TaskInfo
 }
 
 func (a *taskPollingFetchAdaptor) Init(_ *relaycommon.RelayInfo) {}
@@ -52,6 +54,13 @@ func (a *taskPollingFetchAdaptor) FetchTask(_ string, _ string, body map[string]
 		}
 	}
 
+	if a.responseBody != nil {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(a.responseBody)),
+		}, nil
+	}
+
 	response := dto.TaskResponse[model.Task]{
 		Code: dto.TaskSuccessCode,
 		Data: model.Task{
@@ -71,6 +80,9 @@ func (a *taskPollingFetchAdaptor) FetchTask(_ string, _ string, body map[string]
 }
 
 func (a *taskPollingFetchAdaptor) ParseTaskResult([]byte) (*relaycommon.TaskInfo, error) {
+	if a.parseResult != nil {
+		return a.parseResult, nil
+	}
 	return &relaycommon.TaskInfo{Status: model.TaskStatusInProgress}, nil
 }
 
@@ -123,6 +135,34 @@ func seedPollingTask(t *testing.T, channelID int, publicID string, upstreamID st
 	}
 	require.NoError(t, model.DB.Create(task).Error)
 	return task
+}
+
+func TestUpdateVideoSingleTaskKeepsPendingOnUnrecognizedResponse(t *testing.T) {
+	truncate(t)
+
+	const channelID = 99
+	seedTaskPollingChannel(t, channelID, true)
+	task := seedPollingTask(t, channelID, "task_public_unknown_response", "upstream_unknown_response")
+	task.Quota = 1234
+	require.NoError(t, model.DB.Model(task).Update("quota", task.Quota).Error)
+
+	adaptor := &taskPollingFetchAdaptor{
+		responseBody: []byte(`{"unexpected":"upstream envelope"}`),
+		parseResult:  &relaycommon.TaskInfo{},
+	}
+	channel, err := model.CacheGetChannel(channelID)
+	require.NoError(t, err)
+
+	err = updateVideoSingleTask(context.Background(), adaptor, channel, task.GetUpstreamTaskID(), map[string]*model.Task{
+		task.GetUpstreamTaskID(): task,
+	})
+	require.NoError(t, err)
+
+	var reloaded model.Task
+	require.NoError(t, model.DB.First(&reloaded, task.ID).Error)
+	require.Equal(t, model.TaskStatus(model.TaskStatusInProgress), reloaded.Status)
+	require.Equal(t, "30%", reloaded.Progress)
+	require.Empty(t, reloaded.FailReason)
 }
 
 func TestUpdateVideoTasksDefaultSleepWaitsBetweenTasks(t *testing.T) {

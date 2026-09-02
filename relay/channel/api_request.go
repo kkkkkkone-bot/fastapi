@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -77,6 +78,12 @@ var passthroughSkipHeaderNamesLower = map[string]struct{}{
 
 	"cookie": {},
 
+	// Browser origin metadata belongs to the caller's browser session, not the
+	// upstream API request. Providers which need either value can still receive
+	// it through an explicit header override.
+	"origin":  {},
+	"referer": {},
+
 	// Additional headers that should not be forwarded by name-matching passthrough rules.
 	"host":            {},
 	"content-length":  {},
@@ -91,6 +98,40 @@ var passthroughSkipHeaderNamesLower = map[string]struct{}{
 	"sec-websocket-key":        {},
 	"sec-websocket-version":    {},
 	"sec-websocket-extensions": {},
+}
+
+const micuExternalBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:149.0) Gecko/20100101 Firefox/149.0"
+
+// ApplyProviderHeaderDefaults applies documented provider compatibility rules
+// after channel header overrides have been resolved. It is intentionally keyed
+// by the final upstream host so it also covers custom OpenAI-compatible
+// channels without changing unrelated providers.
+func ApplyProviderHeaderDefaults(headers http.Header, target string) {
+	if headers == nil {
+		return
+	}
+
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return
+	}
+	host := strings.ToLower(parsed.Hostname())
+
+	if host == "www.micuapi.ai" || host == "micuapi.ai" {
+		// Micu's external domestic-model routes require a browser-style UA.
+		// Keep an explicit channel override untouched.
+		if strings.TrimSpace(headers.Get("User-Agent")) == "" {
+			headers.Set("User-Agent", micuExternalBrowserUserAgent)
+		}
+	}
+
+	if host == "api.nbility.ai" || host == "nbility.ai" {
+		// Nbility's OpenAI-compatible API authenticates with Bearer tokens and
+		// does not require browser origin headers. A forwarded web Origin can be
+		// rejected as a forbidden origin, so never send it upstream.
+		headers.Del("Origin")
+		headers.Del("Referer")
+	}
 }
 
 var headerPassthroughRegexCache sync.Map // map[string]*regexp.Regexp
@@ -327,6 +368,7 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
+	ApplyProviderHeaderDefaults(req.Header, req.URL.String())
 	resp, err := doRequest(c, req, info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
@@ -359,6 +401,7 @@ func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBod
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
+	ApplyProviderHeaderDefaults(req.Header, req.URL.String())
 	resp, err := doRequest(c, req, info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)

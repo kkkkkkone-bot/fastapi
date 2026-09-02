@@ -359,6 +359,13 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	if _, ok := c.Get("specific_channel_id"); ok {
 		return false
 	}
+	// Some upstream New API gateways reject a request before model execution
+	// when their in-memory body cache is saturated. They currently use 400 for
+	// this transient capacity failure; retry another eligible channel once
+	// instead of treating it as a user input error.
+	if strings.Contains(strings.ToLower(openaiErr.Error()), "memory body cache capacity exhausted") {
+		return true
+	}
 	code := openaiErr.StatusCode
 	if code >= 200 && code < 300 {
 		return false

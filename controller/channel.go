@@ -216,6 +216,11 @@ func buildFetchModelsHeaders(channel *model.Channel, key string) (http.Header, e
 		}
 		headers.Set(k, str)
 	}
+	baseURL := channel.GetBaseURL()
+	if baseURL == "" {
+		baseURL = constant.ChannelBaseURLs[channel.Type]
+	}
+	relaychannel.ApplyProviderHeaderDefaults(headers, baseURL)
 
 	return headers, nil
 }

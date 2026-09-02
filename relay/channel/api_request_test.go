@@ -138,6 +138,54 @@ func TestProcessHeaderOverride_PassthroughSkipsAcceptEncoding(t *testing.T) {
 	require.False(t, hasAcceptEncoding)
 }
 
+func TestProcessHeaderOverride_PassthroughSkipsBrowserOrigin(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	ctx.Request.Header.Set("X-Trace-Id", "trace-123")
+	ctx.Request.Header.Set("Origin", "https://www.fastapi.ltd")
+	ctx.Request.Header.Set("Referer", "https://www.fastapi.ltd/console")
+
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{HeadersOverride: map[string]any{"*": ""}},
+	}
+
+	headers, err := processHeaderOverride(info, ctx)
+	require.NoError(t, err)
+	require.Equal(t, "trace-123", headers["x-trace-id"])
+	require.NotContains(t, headers, "origin")
+	require.NotContains(t, headers, "referer")
+}
+
+func TestApplyProviderHeaderDefaults(t *testing.T) {
+	t.Parallel()
+
+	t.Run("micu gets browser user agent when absent", func(t *testing.T) {
+		headers := make(http.Header)
+		ApplyProviderHeaderDefaults(headers, "https://www.micuapi.ai/v1/chat/completions")
+		require.Equal(t, micuExternalBrowserUserAgent, headers.Get("User-Agent"))
+	})
+
+	t.Run("explicit micu user agent wins", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set("User-Agent", "custom-agent")
+		ApplyProviderHeaderDefaults(headers, "https://www.micuapi.ai/v1/models")
+		require.Equal(t, "custom-agent", headers.Get("User-Agent"))
+	})
+
+	t.Run("nbility strips browser origin headers", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set("Origin", "https://www.fastapi.ltd")
+		headers.Set("Referer", "https://www.fastapi.ltd/console")
+		ApplyProviderHeaderDefaults(headers, "https://api.nbility.ai/v1/models")
+		require.Empty(t, headers.Get("Origin"))
+		require.Empty(t, headers.Get("Referer"))
+	})
+}
+
 func TestProcessHeaderOverride_PassHeadersTemplateSetsRuntimeHeaders(t *testing.T) {
 	t.Parallel()
 
