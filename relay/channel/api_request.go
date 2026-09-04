@@ -143,11 +143,14 @@ func ApplyProviderHeaderDefaults(headers http.Header, target string) {
 		}
 	}
 
-	if host == "api.nbility.ai" || host == "nbility.ai" {
-		// Nbility's OpenAI-compatible API authenticates with Bearer tokens and
-		// does not require browser origin headers. A forwarded web Origin can be
-		// rejected as a forbidden origin, so never send it upstream.
-		headers.Del("Origin")
+	if host == "api.nbility.ai" || host == "nbility.ai" || strings.HasSuffix(host, ".nbility.ai") {
+		// Nbility's front gateway validates the browser Origin header against
+		// its own domain, and it is strictly required: a forwarded web Origin
+		// (e.g. https://www.fastapi.ltd) is rejected with 403 Forbidden origin,
+		// AND a missing Origin is rejected the same way (curl-verified:
+		// no Origin -> 403, Origin: https://nbility.ai -> 401 auth stage).
+		// So rewrite it to the official origin instead of deleting it.
+		headers.Set("Origin", "https://nbility.ai")
 		headers.Del("Referer")
 	}
 }
