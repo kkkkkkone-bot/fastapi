@@ -102,10 +102,12 @@ var passthroughSkipHeaderNamesLower = map[string]struct{}{
 
 const micuExternalBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:149.0) Gecko/20100101 Firefox/149.0"
 
-// allowOriginOverrideHeader is a channel-only control flag. Origin and Referer
-// are stripped from every upstream request by default; a provider that
-// explicitly requires a fixed browser origin must opt in with this header.
-// The control flag itself is never sent upstream.
+// allowOriginOverrideHeader is a channel-only control flag. By default the
+// Origin of every upstream request is rewritten to the upstream's own origin
+// (same-origin semantics, accepted by origin-validating gateways and ignored
+// by everyone else); a provider that explicitly requires a fixed browser
+// origin can opt in with this header and set its own Origin via channel
+// header override. The control flag itself is never sent upstream.
 const allowOriginOverrideHeader = "X-NewAPI-Allow-Origin-Override"
 
 // ApplyProviderHeaderDefaults applies documented provider compatibility rules
@@ -121,19 +123,27 @@ func ApplyProviderHeaderDefaults(headers http.Header, target string) {
 		strings.TrimSpace(headers.Get(allowOriginOverrideHeader)), "true",
 	)
 	headers.Del(allowOriginOverrideHeader)
-	if !allowOriginOverride {
-		// Origin/Referer are browser metadata, not normal server-to-server API
-		// headers. In particular, stale channel overrides easily cause 403
-		// Forbidden origin responses. Keep them only after explicit opt-in.
-		headers.Del("Origin")
-		headers.Del("Referer")
+
+	parsed, parseErr := url.Parse(target)
+	var host string
+	if parseErr == nil && parsed != nil {
+		host = strings.ToLower(parsed.Hostname())
 	}
 
-	parsed, err := url.Parse(target)
-	if err != nil {
-		return
+	if !allowOriginOverride {
+		// Origin/Referer are browser metadata, not normal server-to-server API
+		// headers. Gateways that validate Origin reject BOTH a forwarded web
+		// origin AND a missing one (curl-verified on nbility: no Origin ->
+		// 403 Forbidden origin). So by default rewrite Origin to the upstream's
+		// own origin: that is a same-origin request for the gateway (always
+		// accepted) and is simply ignored by providers that do not care.
+		if parseErr == nil && parsed != nil && parsed.Host != "" {
+			headers.Set("Origin", parsed.Scheme+"://"+parsed.Host)
+		} else {
+			headers.Del("Origin")
+		}
+		headers.Del("Referer")
 	}
-	host := strings.ToLower(parsed.Hostname())
 
 	if host == "www.micuapi.ai" || host == "micuapi.ai" {
 		// Micu's external domestic-model routes require a browser-style UA.
@@ -144,12 +154,11 @@ func ApplyProviderHeaderDefaults(headers http.Header, target string) {
 	}
 
 	if host == "api.nbility.ai" || host == "nbility.ai" || strings.HasSuffix(host, ".nbility.ai") {
-		// Nbility's front gateway validates the browser Origin header against
-		// its own domain, and it is strictly required: a forwarded web Origin
-		// (e.g. https://www.fastapi.ltd) is rejected with 403 Forbidden origin,
-		// AND a missing Origin is rejected the same way (curl-verified:
-		// no Origin -> 403, Origin: https://nbility.ai -> 401 auth stage).
-		// So rewrite it to the official origin instead of deleting it.
+		// Nbility only accepts its apex-domain origin (curl-verified:
+		// Origin https://nbility.ai -> reaches auth stage / 401, no Origin or
+		// any foreign origin -> 403 Forbidden origin). Pin it regardless of
+		// which nbility host the channel targets, in case subdomain origins
+		// are not whitelisted by the gateway.
 		headers.Set("Origin", "https://nbility.ai")
 		headers.Del("Referer")
 	}
